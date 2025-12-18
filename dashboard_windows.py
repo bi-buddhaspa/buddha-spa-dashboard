@@ -25,20 +25,24 @@ st.markdown("""
     /* Cards de métricas */
     .stMetric {
         background-color: #FFFFFF;
-        padding: 20px;
+        padding: 18px;
         border-radius: 10px;
         border: 2px solid #8B0000;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        min-height: 110px;
     }
     .stMetric label {
         color: #8B0000 !important;
-        font-size: 0.9rem !important;
+        font-size: 0.85rem !important;
         font-weight: 600 !important;
+        white-space: normal !important;
     }
     .stMetric [data-testid="stMetricValue"] {
         color: #333333 !important;
-        font-size: 2rem !important;
+        font-size: 1.6rem !important;
         font-weight: 700 !important;
+        line-height: 1.1 !important;
+        white-space: normal !important;
     }
     
     /* Títulos */
@@ -214,15 +218,16 @@ st.caption(f"Periodo: {data_inicio.strftime('%d/%m/%Y')} a {data_fim.strftime('%
 
 # KPIS
 col1, col2, col3, col4 = st.columns(4)
+
 receita_total = df['valor_documento'].sum()
-qtd_vendas = len(df)
+qtd_vendas = int(len(df))
 ticket_medio = receita_total / qtd_vendas if qtd_vendas > 0 else 0
-qtd_clientes = df['cliente'].nunique()
+qtd_clientes = int(df['cliente'].nunique())
 
 col1.metric("Receita Total", f"R$ {receita_total:,.2f}")
-col2.metric("Quantidade de Vendas", f"{qtd_vendas:,}")
+col2.metric("Quantidade de Vendas", f"{qtd_vendas:d}")
 col3.metric("Ticket Medio", f"R$ {ticket_medio:,.2f}")
-col4.metric("Clientes Unicos", qtd_clientes)
+col4.metric("Clientes Unicos", f"{qtd_clientes:d}")
 
 st.divider()
 
@@ -450,4 +455,4 @@ st.dataframe(
 csv = df.to_csv(index=False).encode('utf-8')
 st.download_button("Download CSV", csv, f"buddha_{data_inicio}_{data_fim}.csv", "text/csv")
 
-st.caption("Buddha Spa Dashboard | BigQuery")
+st.caption("Buddha Spa Dashboard")
