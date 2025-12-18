@@ -62,7 +62,6 @@ def load_data(data_inicio, data_fim):
     FROM `buddha-bigdata.analytics.movimentacao_analitica`
     WHERE data_emissao BETWEEN '{data_inicio}' AND '{data_fim}'
     ORDER BY data_emissao DESC
-    LIMIT 10000
     """
     
     return client.query(query).to_dataframe()
