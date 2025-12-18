@@ -551,45 +551,144 @@ with tab_ecom:
         df_ecom['PRICE_GROSS'] = pd.to_numeric(df_ecom['PRICE_GROSS'], errors='coerce')
         df_ecom['PRICE_NET'] = pd.to_numeric(df_ecom['PRICE_NET'], errors='coerce')
 
+        # Normalizar alguns campos de texto
+        if 'PACKAGE_NAME' in df_ecom.columns:
+            df_ecom['PACKAGE_NAME'] = df_ecom['PACKAGE_NAME'].fillna(df_ecom['NAME'])
+        else:
+            df_ecom['PACKAGE_NAME'] = df_ecom['NAME']
+
+        if 'AFILLIATION_NAME' not in df_ecom.columns:
+            df_ecom['AFILLIATION_NAME'] = "Sem Unidade"
+
+        # KPIs principais
         c1, c2, c3, c4 = st.columns(4)
 
         total_pedidos = int(df_ecom['ID'].nunique())
-        total_vouchers = int(df_ecom['COUPONS'].fillna(0).sum())
+        total_vouchers = int(len(df_ecom))  # cada linha é um voucher
         receita_bruta = df_ecom['PRICE_GROSS'].fillna(0).sum()
         receita_liquida = df_ecom['PRICE_NET'].fillna(0).sum()
 
-        c1.metric("Pedidos Ecommerce", f"{total_pedidos:d}")
-        c2.metric("Vouchers Vendidos", f"{total_vouchers:d}")
+        c1.metric("Pedidos Ecommerce", f"{total_pedidos:,.0f}")
+        c2.metric("Vouchers Vendidos", f"{total_vouchers:,.0f}")
         c3.metric("Receita Bruta", f"R$ {receita_bruta:,.2f}")
         c4.metric("Receita Líquida", f"R$ {receita_liquida:,.2f}")
 
         st.markdown("---")
 
-        if 'AFILLIATION_NAME' in df_ecom.columns:
-            df_af = (
-                df_ecom
-                .groupby('AFILLIATION_NAME')['PRICE_NET']
-                .sum()
-                .reset_index()
-                .sort_values('PRICE_NET', ascending=False)
+        # 1) Top Serviços / Pacotes
+        st.markdown("### Top 10 Serviços / Pacotes Vendidos")
+
+        df_serv = (
+            df_ecom
+            .groupby('PACKAGE_NAME')
+            .agg(
+                qtde_vouchers=('ID', 'count'),
+                receita_liquida=('PRICE_NET', 'sum')
             )
-            st.markdown("### Receita Líquida por Unidade (Ecommerce)")
-            fig = px.bar(
-                df_af,
-                x='PRICE_NET',
-                y='AFILLIATION_NAME',
+            .reset_index()
+            .sort_values('qtde_vouchers', ascending=False)
+            .head(10)
+        )
+
+        col_a, col_b = st.columns([2, 1])
+
+        with col_a:
+            fig_serv = px.bar(
+                df_serv,
+                x='qtde_vouchers',
+                y='PACKAGE_NAME',
                 orientation='h',
-                labels={'PRICE_NET': 'Receita Líquida (R$)', 'AFILLIATION_NAME': 'Unidade'},
+                labels={'qtde_vouchers': 'Qtd Vouchers', 'PACKAGE_NAME': 'Serviço / Pacote'},
+                text='qtde_vouchers'
             )
-            fig.update_traces(marker_color='#8B0000')
-            fig.update_layout(
+            fig_serv.update_traces(marker_color='#8B0000', textposition='outside')
+            fig_serv.update_layout(
                 plot_bgcolor='#FFFFFF',
                 paper_bgcolor='#F5F0E6',
                 height=450
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig_serv, use_container_width=True)
 
-        st.markdown("### Detalhe das Vendas (últimas 200 linhas)")
+        with col_b:
+            st.dataframe(
+                df_serv.rename(columns={
+                    'PACKAGE_NAME': 'Serviço / Pacote',
+                    'qtde_vouchers': 'Qtd Vouchers',
+                    'receita_liquida': 'Receita Líquida'
+                }).style.format({
+                    'Qtd Vouchers': '{:,.0f}',
+                    'Receita Líquida': 'R$ {:,.2f}'
+                }),
+                use_container_width=True,
+                height=450
+            )
+
+        st.markdown("---")
+
+        # 2) Receita por Unidade (afiliação)
+        st.markdown("### Receita Líquida por Unidade (Ecommerce)")
+        df_af = (
+            df_ecom
+            .groupby('AFILLIATION_NAME')['PRICE_NET']
+            .sum()
+            .reset_index()
+            .sort_values('PRICE_NET', ascending=False)
+            .head(15)
+        )
+
+        fig_af = px.bar(
+            df_af,
+            x='PRICE_NET',
+            y='AFILLIATION_NAME',
+            orientation='h',
+            labels={'PRICE_NET': 'Receita Líquida (R$)', 'AFILLIATION_NAME': 'Unidade'},
+        )
+        fig_af.update_traces(marker_color='#A52A2A')
+        fig_af.update_layout(
+            plot_bgcolor='#FFFFFF',
+            paper_bgcolor='#F5F0E6',
+            height=450
+        )
+        st.plotly_chart(fig_af, use_container_width=True)
+
+        st.markdown("---")
+
+        # 3) Top Clientes em quantidade de vouchers
+        st.markdown("### Top 20 Clientes por Quantidade de Vouchers")
+
+        if 'Customer_FullName' in df_ecom.columns:
+            df_cli = (
+                df_ecom
+                .groupby(['Customer_FullName', 'Customer_Email'])
+                .agg(
+                    qtde_vouchers=('ID', 'count'),
+                    receita_liquida=('PRICE_NET', 'sum')
+                )
+                .reset_index()
+                .sort_values('qtde_vouchers', ascending=False)
+                .head(20)
+            )
+
+            st.dataframe(
+                df_cli.rename(columns={
+                    'Customer_FullName': 'Cliente',
+                    'Customer_Email': 'Email',
+                    'qtde_vouchers': 'Qtd Vouchers',
+                    'receita_liquida': 'Receita Líquida'
+                }).style.format({
+                    'Qtd Vouchers': '{:,.0f}',
+                    'Receita Líquida': 'R$ {:,.2f}'
+                }),
+                use_container_width=True,
+                height=450
+            )
+        else:
+            st.info("Campo de clientes não disponível nos dados para esse período.")
+
+        st.markdown("---")
+
+        # Detalhe bruto dos vouchers
+        st.markdown("### Detalhe dos Vouchers (últimas 200 linhas)")
         df_ecom_view = df_ecom.sort_values('CREATED_DATE_BRAZIL', ascending=False).head(200)
         st.dataframe(df_ecom_view, use_container_width=True, height=400)
 
