@@ -153,9 +153,9 @@ def load_unidades():
     return client.query(query).to_dataframe()['unidade'].tolist()
 
 @st.cache_data(ttl=3600)
-def load_ecommerce_data():
+def load_ecommerce_data(data_inicio, data_fim):
     client = get_bigquery_client()
-    query = """
+    query = f"""
     SELECT 
         s.ID, 
         s.NAME,
@@ -258,16 +258,16 @@ def load_ecommerce_data():
         ) AS Customer_Birthdate
     FROM `buddha-bigdata.raw.ecommerce_raw` s
     WHERE 
-        s.CREATED_DATE >= TIMESTAMP('2024-01-01 00:00:00', 'America/Sao_Paulo')
-        AND s.CREATED_DATE < CURRENT_TIMESTAMP()
+        s.CREATED_DATE >= TIMESTAMP('{data_inicio} 00:00:00', 'America/Sao_Paulo')
+        AND s.CREATED_DATE <= TIMESTAMP('{data_fim} 23:59:59', 'America/Sao_Paulo')
         AND s.STATUS IN ('1','2','3')
     """
     return client.query(query).to_dataframe()
 
 # -----------------------------------------------------------------------------
-# SIDEBAR – FILTROS PARA MOVIMENTAÇÃO (DATA LIVRE)
+# SIDEBAR – FILTROS
 # -----------------------------------------------------------------------------
-st.sidebar.title("Filtros – Movimentação")
+st.sidebar.title("Filtros")
 
 col1, col2 = st.sidebar.columns(2)
 data_inicio = col1.date_input("De:", value=datetime(2025, 9, 1))
@@ -541,13 +541,13 @@ with tab_selfservice:
 # ---------------------- TAB 5: VENDAS ECOMMERCE -----------------
 with tab_ecom:
     st.subheader("Vendas Ecommerce (Vouchers)")
-    st.caption("Período: de 01/01/2024 até agora")
+    st.caption(f"Período: {data_inicio.strftime('%d/%m/%Y')} a {data_fim.strftime('%d/%m/%Y')}")
 
     with st.spinner("Carregando dados de ecommerce..."):
-        df_ecom = load_ecommerce_data()
+        df_ecom = load_ecommerce_data(data_inicio, data_fim)
 
     if df_ecom.empty:
-        st.warning("Sem dados de ecommerce para o período.")
+        st.warning("Sem dados de ecommerce para o período selecionado.")
     else:
         c1, c2, c3, c4 = st.columns(4)
 
@@ -595,7 +595,7 @@ with tab_ecom:
         st.download_button(
             "Download CSV Ecommerce Completo",
             csv_ecom,
-            "buddha_ecommerce_2024_atual.csv",
+            f"buddha_ecommerce_{data_inicio}_{data_fim}.csv",
             "text/csv"
         )
 
