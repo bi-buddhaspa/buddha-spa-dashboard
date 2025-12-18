@@ -22,7 +22,6 @@ st.markdown("""
 
 @st.cache_resource
 def get_bigquery_client():
-    def get_bigquery_client():
     from google.oauth2 import service_account
     
     # Usar credenciais do Streamlit Cloud Secrets
