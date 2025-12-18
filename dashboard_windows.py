@@ -22,7 +22,18 @@ st.markdown("""
 
 @st.cache_resource
 def get_bigquery_client():
-    return bigquery.Client()
+    def get_bigquery_client():
+    from google.oauth2 import service_account
+    
+    # Usar credenciais do Streamlit Cloud Secrets
+    if 'gcp_service_account' in st.secrets:
+        credentials = service_account.Credentials.from_service_account_info(
+            st.secrets["gcp_service_account"]
+        )
+        return bigquery.Client(credentials=credentials, project='buddha-bigdata')
+    else:
+        # Para ambiente local
+        return bigquery.Client(project='buddha-bigdata')
 
 @st.cache_data(ttl=3600)
 def load_data(data_inicio, data_fim):
