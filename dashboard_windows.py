@@ -126,22 +126,30 @@ def get_bigquery_client():
 @st.cache_data(ttl=3600)
 def load_atendimentos(data_inicio, data_fim):
     """
-    Carrega os itens de atendimentos detalhados.
-    Ajuste os nomes das colunas abaixo se forem diferentes na tabela real.
+    Carrega os itens de atendimentos detalhados (apenas tipo_item = 'Serviço').
+    Usa os nomes reais das colunas que você mostrou.
     """
     client = get_bigquery_client()
     query = f"""
     SELECT
         unidade,
         DATE(data_atendimento) AS data_atendimento,
+        nome_cliente,
+        profissional,
+        tipo_item,
+        categoria_servico,
+        descricao_item,
+        servico_realizado,
+        nome_servico_simplificado,
         forma_pagamento,
-        servico,
-        profissional,   -- Terapeuta
-        cliente,
         valor_bruto,
-        valor_liquido
+        valor_desconto,
+        valor_liquido,
+        valor_recebido
     FROM `buddha-bigdata.analytics.itens_atendimentos_analytics`
-    WHERE data_atendimento BETWEEN '{data_inicio}' AND '{data_fim}'
+    WHERE 
+        data_atendimento BETWEEN '{data_inicio}' AND '{data_fim}'
+        AND tipo_item = 'Serviço'
     """
     return client.query(query).to_dataframe()
 
@@ -326,7 +334,7 @@ st.caption(f"Período: {data_inicio.strftime('%d/%m/%Y')} a {data_fim.strftime('
 # -----------------------------------------------------------------------------
 receita_total = df[valor_col].sum()
 qtd_atendimentos = int(len(df))
-qtd_clientes = int(df['cliente'].nunique()) if 'cliente' in df.columns else 0
+qtd_clientes = int(df['nome_cliente'].nunique()) if 'nome_cliente' in df.columns else 0
 ticket_medio = receita_total / qtd_atendimentos if qtd_atendimentos > 0 else 0
 
 col1, col2, col3, col4 = st.columns(4)
@@ -394,15 +402,14 @@ with tab_visao:
 # ---------------------- TAB: ATENDIMENTO -------------------------
 with tab_atend:
     st.subheader("Performance por Terapeuta")
-    st.caption("Aqui concentramos tudo o que é de Terapeuta (sem acento circunflexo no rótulo).")
 
     if 'profissional' in df.columns:
         df_terap = (
             df.groupby(['unidade', 'profissional'])
             .agg(
                 receita=(valor_col, 'sum'),
-                qtd_atendimentos=('cliente', 'count' if 'cliente' in df.columns else 'size'),
-                clientes_unicos=('cliente', 'nunique') if 'cliente' in df.columns else ('unidade', 'size')
+                qtd_atendimentos=('nome_cliente', 'count' if 'nome_cliente' in df.columns else 'size'),
+                clientes_unicos=('nome_cliente', 'nunique') if 'nome_cliente' in df.columns else ('unidade', 'size')
             )
             .reset_index()
         )
@@ -410,7 +417,6 @@ with tab_atend:
 
         df_terap = df_terap.sort_values('receita', ascending=False)
 
-        # TOTAL no final
         totais = {
             'unidade': 'TOTAL',
             'profissional': 'TOTAL',
@@ -460,14 +466,15 @@ with tab_atend:
                 height=500
             )
     else:
-        st.info("A coluna 'profissional' não foi encontrada em itens_atendimentos_analytics. Confirme o nome dessa coluna na tabela.")
+        st.info("A coluna 'profissional' não foi encontrada em itens_atendimentos_analytics.")
 
     st.markdown("---")
     st.subheader("Principais Serviços (com % do Total)")
 
-    if 'servico' in df.columns:
+    # Usando nome_servico_simplificado como serviço
+    if 'nome_servico_simplificado' in df.columns:
         df_servicos = (
-            df.groupby('servico')[valor_col]
+            df.groupby('nome_servico_simplificado')[valor_col]
             .sum()
             .reset_index()
             .rename(columns={valor_col: 'receita'})
@@ -481,10 +488,10 @@ with tab_atend:
             fig_s = px.bar(
                 df_servicos,
                 x='receita',
-                y='servico',
+                y='nome_servico_simplificado',
                 orientation='h',
                 text=df_servicos['perc_receita'].map(lambda x: f"{x*100:.1f}%"),
-                labels={'receita': 'Receita (R$)', 'servico': 'Serviço'}
+                labels={'receita': 'Receita (R$)', 'nome_servico_simplificado': 'Serviço'}
             )
             fig_s.update_traces(marker_color='#8B0000', textposition='outside')
             fig_s.update_layout(
@@ -497,7 +504,7 @@ with tab_atend:
         with col2_s:
             st.dataframe(
                 df_servicos.rename(columns={
-                    'servico': 'Serviço',
+                    'nome_servico_simplificado': 'Serviço',
                     'receita': 'Receita',
                     'perc_receita': '% Receita'
                 }).style.format({
@@ -508,7 +515,7 @@ with tab_atend:
                 height=500
             )
     else:
-        st.info("A coluna 'servico' não foi encontrada em itens_atendimentos_analytics.")
+        st.info("A coluna 'nome_servico_simplificado' não foi encontrada em itens_atendimentos_analytics.")
 
 # ---------------------- TAB: FINANCEIRO -------------------------
 with tab_fin:
@@ -706,9 +713,9 @@ with tab_selfservice:
             "Data": data_col,
             "Unidade": "unidade",
             "Forma de Pagamento": "forma_pagamento",
-            "Serviço": "servico",
+            "Serviço": "nome_servico_simplificado",
             "Terapeuta": "profissional",
-            "Cliente": "cliente"
+            "Cliente": "nome_cliente"
         }
 
         colunas_agrupamento = [dim_map[d] for d in dimensoes if dim_map[d] in df.columns]
@@ -721,8 +728,8 @@ with tab_selfservice:
                 agg_dict['receita_total'] = (valor_col, 'sum')
             if "Quantidade de Atendimentos" in metricas:
                 agg_dict['qtd_atendimentos'] = (valor_col, 'count')
-            if "Clientes Únicos" in metricas and 'cliente' in df.columns:
-                agg_dict['clientes_unicos'] = ('cliente', 'nunique')
+            if "Clientes Únicos" in metricas and 'nome_cliente' in df.columns:
+                agg_dict['clientes_unicos'] = ('nome_cliente', 'nunique')
             if "Maior Valor" in metricas:
                 agg_dict['maior_valor'] = (valor_col, 'max')
             if "Menor Valor" in metricas:
@@ -744,9 +751,9 @@ with tab_selfservice:
                 data_col: 'Data',
                 'unidade': 'Unidade',
                 'forma_pagamento': 'Forma Pagamento',
-                'servico': 'Serviço',
+                'nome_servico_simplificado': 'Serviço',
                 'profissional': 'Terapeuta',
-                'cliente': 'Cliente'
+                'nome_cliente': 'Cliente'
             }
             df_custom = df_custom.rename(columns=rename_map)
 
@@ -841,22 +848,6 @@ with tab_gloss:
 
     **Vouchers Vendidos**  
     Quantidade total de vouchers (cada linha da tabela de ecommerce é um voucher).
-
-    **Pontos do pedido do chefe que dependerão de dados adicionais:**
-
-    - **Taxa de Ocupação (unidade e por Terapeuta)**  
-      Precisa de horário de funcionamento do SPA + escala Belle + nº de salas de atendimento.
-      Fórmula pedida:  
-      $$\\text{Taxa de Ocupação} = \\frac{\\text{Horas de Atendimento}}{\\text{Horas Disponíveis}}$$
-
-    - **Comparação com Cluster (média, máximo, mínimo, ranking)**  
-      Precisa de uma tabela que diga em que *cluster* cada unidade está.
-
-    - **Investimentos em Marketing (locais)**  
-      Precisa de uma tabela/planilha onde o franqueado informe os gastos de marketing.
-
-    - **Suporte (Visitas, Eventos e Desenvolvimento)**  
-      Precisa de uma tabela de visitas/eventos com datas, unidades e participação.
     """)
 
 # -----------------------------------------------------------------------------
@@ -865,7 +856,7 @@ with tab_gloss:
 st.divider()
 st.subheader("Dados Detalhados de Atendimentos (Top 100 linhas)")
 
-cols_detalhe = [c for c in [data_col, 'unidade', 'cliente', 'servico', valor_col] if c in df.columns]
+cols_detalhe = [c for c in [data_col, 'unidade', 'nome_cliente', 'nome_servico_simplificado', valor_col] if c in df.columns]
 df_view = df[cols_detalhe].head(100)
 
 st.dataframe(df_view, use_container_width=True, height=300)
@@ -878,4 +869,4 @@ st.download_button(
     "text/csv"
 )
 
-st.caption("Buddha Spa Dashboard – Versão alinhada ao pedido do chefe (dentro do que os dados atuais permitem).")
+st.caption("Buddha Spa Dashboard – Versão alinhada ao pedido do chefe (base itens_atendimentos_analytics).")
