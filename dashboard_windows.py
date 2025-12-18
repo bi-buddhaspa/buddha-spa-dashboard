@@ -134,7 +134,7 @@ def load_atendimentos(data_inicio, data_fim):
     SELECT
         unidade,
         DATE(data_atendimento) AS data_atendimento,
-        forma_pagto,
+        forma_pagamento,
         servico,
         profissional,   -- Terapeuta
         cliente,
@@ -705,7 +705,7 @@ with tab_selfservice:
         dim_map = {
             "Data": data_col,
             "Unidade": "unidade",
-            "Forma de Pagamento": "forma_pagto",
+            "Forma de Pagamento": "forma_pagamento",
             "Serviço": "servico",
             "Terapeuta": "profissional",
             "Cliente": "cliente"
@@ -743,7 +743,7 @@ with tab_selfservice:
                 'menor_valor': 'Menor Valor',
                 data_col: 'Data',
                 'unidade': 'Unidade',
-                'forma_pagto': 'Forma Pagamento',
+                'forma_pagamento': 'Forma Pagamento',
                 'servico': 'Serviço',
                 'profissional': 'Terapeuta',
                 'cliente': 'Cliente'
