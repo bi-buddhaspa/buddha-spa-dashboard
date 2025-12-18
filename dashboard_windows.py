@@ -323,11 +323,8 @@ col4.metric("Clientes Únicos", f"{qtd_clientes:d}")
 
 st.divider()
 
-# Paleta para gráficos
-color_palette = ['#8B0000', '#A52A2A', '#B22222', '#CD5C5C', '#F08080']
-
 # -----------------------------------------------------------------------------
-# TABS (INCLUINDO VENDAS ECOMMERCE)
+# TABS
 # -----------------------------------------------------------------------------
 tab1, tab2, tab3, tab_selfservice, tab_ecom = st.tabs(
     ["Evolução", "Unidades", "Top Serviços", "Self-Service", "Vendas Ecommerce"]
@@ -549,6 +546,11 @@ with tab_ecom:
     if df_ecom.empty:
         st.warning("Sem dados de ecommerce para o período selecionado.")
     else:
+        # Garantir que colunas numéricas estejam como número
+        df_ecom['COUPONS'] = pd.to_numeric(df_ecom['COUPONS'], errors='coerce')
+        df_ecom['PRICE_GROSS'] = pd.to_numeric(df_ecom['PRICE_GROSS'], errors='coerce')
+        df_ecom['PRICE_NET'] = pd.to_numeric(df_ecom['PRICE_NET'], errors='coerce')
+
         c1, c2, c3, c4 = st.columns(4)
 
         total_pedidos = int(df_ecom['ID'].nunique())
