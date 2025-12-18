@@ -173,7 +173,6 @@ def load_unidades():
     FROM `buddha-bigdata.analytics.movimentacao_analitica`
     WHERE data_emissao >= DATE_SUB(CURRENT_DATE(), INTERVAL 3 MONTH)
     ORDER BY unidade
-    LIMIT 50
     """
     return client.query(query).to_dataframe()['unidade'].tolist()
 
