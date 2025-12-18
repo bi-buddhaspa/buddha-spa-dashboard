@@ -13,9 +13,19 @@ st.set_page_config(
 st.markdown("""
     <style>
     .stMetric {
-        background-color: #f0f2f6;
-        padding: 15px;
+        background-color: #ffffff;
+        padding: 20px;
         border-radius: 10px;
+        border: 1px solid #e0e0e0;
+    }
+    .stMetric label {
+        color: #262730 !important;
+        font-size: 0.9rem !important;
+    }
+    .stMetric [data-testid="stMetricValue"] {
+        color: #0e1117 !important;
+        font-size: 2rem !important;
+        font-weight: 600 !important;
     }
     </style>
 """, unsafe_allow_html=True)
