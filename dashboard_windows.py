@@ -12,20 +12,115 @@ st.set_page_config(
 
 st.markdown("""
     <style>
+    /* Fundo da página */
+    .stApp {
+        background-color: #F5F0E6;
+    }
+    
+    /* Sidebar */
+    [data-testid="stSidebar"] {
+        background-color: #FFFFFF;
+    }
+    
+    /* Cards de métricas */
     .stMetric {
-        background-color: #ffffff;
+        background-color: #FFFFFF;
         padding: 20px;
         border-radius: 10px;
-        border: 1px solid #e0e0e0;
+        border: 2px solid #8B0000;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     .stMetric label {
-        color: #262730 !important;
+        color: #8B0000 !important;
         font-size: 0.9rem !important;
+        font-weight: 600 !important;
     }
     .stMetric [data-testid="stMetricValue"] {
-        color: #0e1117 !important;
+        color: #333333 !important;
         font-size: 2rem !important;
-        font-weight: 600 !important;
+        font-weight: 700 !important;
+    }
+    
+    /* Títulos */
+    h1 {
+        color: #8B0000 !important;
+        font-weight: 700 !important;
+    }
+    h2, h3 {
+        color: #8B0000 !important;
+    }
+    
+    /* Tabs */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+        background-color: #FFFFFF;
+        padding: 10px;
+        border-radius: 10px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        background-color: #F5F0E6;
+        color: #8B0000;
+        border-radius: 5px;
+        padding: 10px 20px;
+        font-weight: 600;
+    }
+    .stTabs [aria-selected="true"] {
+        background-color: #8B0000;
+        color: #FFFFFF;
+    }
+    
+    /* Botões */
+    .stButton > button {
+        background-color: #8B0000;
+        color: #FFFFFF;
+        border-radius: 5px;
+        border: none;
+        font-weight: 600;
+    }
+    .stButton > button:hover {
+        background-color: #A52A2A;
+    }
+    
+    /* Download button */
+    .stDownloadButton > button {
+        background-color: #8B0000;
+        color: #FFFFFF;
+        border-radius: 5px;
+        border: none;
+        font-weight: 600;
+    }
+    .stDownloadButton > button:hover {
+        background-color: #A52A2A;
+    }
+    
+    /* Dataframes */
+    .stDataFrame {
+        background-color: #FFFFFF;
+        border-radius: 10px;
+        padding: 10px;
+    }
+    
+    /* Divider */
+    hr {
+        border-color: #8B0000;
+    }
+    
+    /* Multiselect */
+    .stMultiSelect [data-baseweb="tag"] {
+        background-color: #8B0000;
+    }
+    
+    /* Slider */
+    .stSlider [data-baseweb="slider"] [role="slider"] {
+        background-color: #8B0000;
+    }
+    
+    /* Checkbox */
+    .stCheckbox [data-baseweb="checkbox"] {
+        border-color: #8B0000;
+    }
+    .stCheckbox [data-baseweb="checkbox"]:checked {
+        background-color: #8B0000;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -124,21 +219,30 @@ qtd_vendas = len(df)
 ticket_medio = receita_total / qtd_vendas if qtd_vendas > 0 else 0
 qtd_clientes = df['cliente'].nunique()
 
-col1.metric("Receita", f"R$ {receita_total:,.2f}")
-col2.metric("Vendas", f"{qtd_vendas:,}")
+col1.metric("Receita Total", f"R$ {receita_total:,.2f}")
+col2.metric("Quantidade de Vendas", f"{qtd_vendas:,}")
 col3.metric("Ticket Medio", f"R$ {ticket_medio:,.2f}")
-col4.metric("Clientes", qtd_clientes)
+col4.metric("Clientes Unicos", qtd_clientes)
 
 st.divider()
 
-# GRAFICOS
+# GRAFICOS - Aplicar paleta de cores nos gráficos
+color_palette = ['#8B0000', '#A52A2A', '#B22222', '#CD5C5C', '#F08080']
+
 tab1, tab2, tab3, tab_selfservice = st.tabs(["Evolucao", "Unidades", "Top Servicos", "Self-Service"])
 
 with tab1:
     st.subheader("Receita Diaria")
     df_evolucao = df.groupby('data_emissao')['valor_documento'].sum().reset_index()
     fig = px.line(df_evolucao, x='data_emissao', y='valor_documento', markers=True)
-    fig.update_layout(xaxis_title="Data", yaxis_title="Receita (R$)", height=400)
+    fig.update_traces(line_color='#8B0000', marker=dict(color='#8B0000'))
+    fig.update_layout(
+        xaxis_title="Data", 
+        yaxis_title="Receita (R$)", 
+        height=400,
+        plot_bgcolor='#FFFFFF',
+        paper_bgcolor='#F5F0E6'
+    )
     st.plotly_chart(fig, use_container_width=True)
 
 with tab2:
@@ -146,13 +250,23 @@ with tab2:
     df_unidades = df.groupby('unidade')['valor_documento'].sum().reset_index()
     df_unidades = df_unidades.sort_values('valor_documento', ascending=False)
     fig = px.bar(df_unidades, x='valor_documento', y='unidade', orientation='h')
+    fig.update_traces(marker_color='#8B0000')
+    fig.update_layout(
+        plot_bgcolor='#FFFFFF',
+        paper_bgcolor='#F5F0E6'
+    )
     st.plotly_chart(fig, use_container_width=True)
 
 with tab3:
     st.subheader("Top 10 Servicos")
     df_servicos = df.groupby('servico')['valor_documento'].sum().reset_index()
     df_servicos = df_servicos.sort_values('valor_documento', ascending=False).head(10)
-    fig = px.bar(df_servicos, x='valor_documento', y='servico', orientation='h', color='valor_documento')
+    fig = px.bar(df_servicos, x='valor_documento', y='servico', orientation='h', color='valor_documento',
+                 color_continuous_scale=['#F08080', '#CD5C5C', '#B22222', '#A52A2A', '#8B0000'])
+    fig.update_layout(
+        plot_bgcolor='#FFFFFF',
+        paper_bgcolor='#F5F0E6'
+    )
     st.plotly_chart(fig, use_container_width=True)
 
 with tab_selfservice:
