@@ -121,16 +121,13 @@ def get_bigquery_client():
         return bigquery.Client(project='buddha-bigdata')
 
 # -----------------------------------------------------------------------------
-# FUNÇÕES DE DADOS
+# FUNÇÕES DE DADOS (USANDO itens_atendimentos_analytics)
 # -----------------------------------------------------------------------------
 @st.cache_data(ttl=3600)
 def load_atendimentos(data_inicio, data_fim):
     """
-    ATENÇÃO:
-    - Troque o nome da tabela abaixo (`atendimentos_detalhado_analytics`)
-      pelo NOME REAL da sua tabela de itens de atendimentos detalhado.
-    - Ajuste os nomes das colunas (data_atendimento, valor_bruto, valor_liquido, etc.)
-      se forem diferentes na sua tabela.
+    Carrega os itens de atendimentos detalhados.
+    Ajuste os nomes das colunas abaixo se forem diferentes na tabela real.
     """
     client = get_bigquery_client()
     query = f"""
@@ -139,11 +136,11 @@ def load_atendimentos(data_inicio, data_fim):
         DATE(data_atendimento) AS data_atendimento,
         forma_pagto,
         servico,
-        profissional,      -- Terapeuta (sem acento no label)
+        profissional,   -- Terapeuta
         cliente,
         valor_bruto,
         valor_liquido
-    FROM `buddha-bigdata.analytics.atendimentos_detalhado_analytics`
+    FROM `buddha-bigdata.analytics.itens_atendimentos_analytics`
     WHERE data_atendimento BETWEEN '{data_inicio}' AND '{data_fim}'
     """
     return client.query(query).to_dataframe()
@@ -153,7 +150,7 @@ def load_unidades():
     client = get_bigquery_client()
     query = """
     SELECT DISTINCT LOWER(unidade) AS unidade
-    FROM `buddha-bigdata.analytics.atendimentos_detalhado_analytics`
+    FROM `buddha-bigdata.analytics.itens_atendimentos_analytics`
     WHERE data_atendimento >= DATE_SUB(CURRENT_DATE(), INTERVAL 3 MONTH)
     ORDER BY unidade
     LIMIT 100
@@ -309,10 +306,10 @@ if df.empty:
     st.stop()
 
 # Normalizar nome das colunas principais
+data_col = 'data_atendimento'
 valor_col = 'valor_liquido' if 'valor_liquido' in df.columns else (
     'valor_bruto' if 'valor_bruto' in df.columns else None
 )
-data_col = 'data_atendimento' if 'data_atendimento' in df.columns else 'data_emissao'
 
 if valor_col is None:
     st.error("Não encontrei colunas de valor (valor_liquido ou valor_bruto) na tabela de atendimentos.")
@@ -326,7 +323,6 @@ st.caption(f"Período: {data_inicio.strftime('%d/%m/%Y')} a {data_fim.strftime('
 
 # -----------------------------------------------------------------------------
 # KPIs PRINCIPAIS (VISÃO GERAL)
-# Regra do chefe: primeiro dados gerais, depois Ticket Médio
 # -----------------------------------------------------------------------------
 receita_total = df[valor_col].sum()
 qtd_atendimentos = int(len(df))
@@ -412,10 +408,9 @@ with tab_atend:
         )
         df_terap['ticket_medio'] = df_terap['receita'] / df_terap['qtd_atendimentos']
 
-        # Ordenar por receita
         df_terap = df_terap.sort_values('receita', ascending=False)
 
-        # TOTAL no final (pedido do chefe)
+        # TOTAL no final
         totais = {
             'unidade': 'TOTAL',
             'profissional': 'TOTAL',
@@ -465,7 +460,7 @@ with tab_atend:
                 height=500
             )
     else:
-        st.info("A coluna 'profissional' não foi encontrada na tabela de atendimentos. Ajuste o SELECT, se ela existir com outro nome.")
+        st.info("A coluna 'profissional' não foi encontrada em itens_atendimentos_analytics. Confirme o nome dessa coluna na tabela.")
 
     st.markdown("---")
     st.subheader("Principais Serviços (com % do Total)")
@@ -513,7 +508,7 @@ with tab_atend:
                 height=500
             )
     else:
-        st.info("A coluna 'servico' não foi encontrada na tabela de atendimentos.")
+        st.info("A coluna 'servico' não foi encontrada em itens_atendimentos_analytics.")
 
 # ---------------------- TAB: FINANCEIRO -------------------------
 with tab_fin:
@@ -561,7 +556,7 @@ with tab_mkt:
     st.subheader("Ecommerce – Vendas de Vouchers")
     st.caption(
         "Aqui trazemos os indicadores de ecommerce (rede + franquias) com base em `raw.ecommerce_raw`.\n"
-        "Sessões de página, cliques WhatsApp, Ads e Meta Ads serão incluídos quando as tabelas GA4/Ads forem plugadas."
+        "Sessões página, cliques WhatsApp, Ads e Meta Ads entram depois com GA4/Ads plugados."
     )
 
     with st.spinner("Carregando dados de ecommerce..."):
@@ -570,12 +565,10 @@ with tab_mkt:
     if df_ecom.empty:
         st.warning("Sem dados de ecommerce para o período selecionado.")
     else:
-        # Garantir colunas numéricas corretas
         df_ecom['COUPONS'] = pd.to_numeric(df_ecom['COUPONS'], errors='coerce')
         df_ecom['PRICE_GROSS'] = pd.to_numeric(df_ecom['PRICE_GROSS'], errors='coerce')
         df_ecom['PRICE_NET'] = pd.to_numeric(df_ecom['PRICE_NET'], errors='coerce')
 
-        # Normalizar alguns campos de texto
         if 'PACKAGE_NAME' in df_ecom.columns:
             df_ecom['PACKAGE_NAME'] = df_ecom['PACKAGE_NAME'].fillna(df_ecom['NAME'])
         else:
@@ -587,7 +580,7 @@ with tab_mkt:
         colm1, colm2, colm3, colm4 = st.columns(4)
 
         total_pedidos = int(df_ecom['ID'].nunique())
-        total_vouchers = int(len(df_ecom))  # cada linha é um voucher
+        total_vouchers = int(len(df_ecom))
         receita_bruta_e = df_ecom['PRICE_GROSS'].fillna(0).sum()
         receita_liquida_e = df_ecom['PRICE_NET'].fillna(0).sum()
         ticket_medio_e = receita_liquida_e / total_pedidos if total_pedidos > 0 else 0
@@ -671,12 +664,6 @@ with tab_mkt:
             height=450
         )
         st.plotly_chart(fig_af, use_container_width=True)
-
-        st.markdown("---")
-        st.caption(
-            "Obs.: Sessões página, cliques WhatsApp, impressões de anúncios e alcance "
-            "virão de GA4/Google Ads/Meta Ads assim que essas tabelas forem conectadas."
-        )
 
 # ---------------------- TAB: SELF-SERVICE -------------------------
 with tab_selfservice:
@@ -835,7 +822,7 @@ with tab_gloss:
 
     st.markdown("""
     **Receita Total (Atendimentos)**  
-    Soma de todos os valores líquidos de atendimentos no período selecionado.
+    Soma de todos os valores (líquidos ou brutos, conforme campo usado) de atendimentos no período selecionado.
 
     **Quantidade de Atendimentos**  
     Número de registros de atendimentos no período (cada linha = 1 atendimento).
@@ -855,7 +842,7 @@ with tab_gloss:
     **Vouchers Vendidos**  
     Quantidade total de vouchers (cada linha da tabela de ecommerce é um voucher).
 
-    **Obs. importantes do Chefe (o que ainda depende de dados extras)**
+    **Pontos do pedido do chefe que dependerão de dados adicionais:**
 
     - **Taxa de Ocupação (unidade e por Terapeuta)**  
       Precisa de horário de funcionamento do SPA + escala Belle + nº de salas de atendimento.
@@ -870,9 +857,6 @@ with tab_gloss:
 
     - **Suporte (Visitas, Eventos e Desenvolvimento)**  
       Precisa de uma tabela de visitas/eventos com datas, unidades e participação.
-
-    Assim que essas bases estiverem disponíveis no BigQuery, dá para plugá-las
-    neste mesmo dashboard sem mudar a lógica principal.
     """)
 
 # -----------------------------------------------------------------------------
