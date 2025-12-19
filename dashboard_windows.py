@@ -270,7 +270,7 @@ def load_ecommerce_data(data_inicio, data_fim):
     return client.query(query).to_dataframe()
 
 # -----------------------------------------------------------------------------
-# FUNÇÕES DE DADOS – GA4
+# FUNÇÕES DE DADOS – GA4 (CORRIGIDAS)
 # -----------------------------------------------------------------------------
 @st.cache_data(ttl=3600)
 def load_ga4_pages(data_inicio, data_fim):
@@ -284,7 +284,7 @@ def load_ga4_pages(data_inicio, data_fim):
       totalUsers AS usuarios,
       averageSessionDuration AS duracao_media_sessao
     FROM `buddha-bigdata.ga4_historical_us.ga4_pages_historical`
-    WHERE date BETWEEN DATE('{data_inicio}') AND DATE('{data_fim}')
+    WHERE DATE(date) BETWEEN DATE('{data_inicio}') AND DATE('{data_fim}')
     """
     return client.query(query).to_dataframe()
 
@@ -304,7 +304,7 @@ def load_ga4_traffic(data_inicio, data_fim):
       SUM(screenPageViews) AS pageviews,
       SUM(userEngagementDuration) AS duracao_engajamento
     FROM `buddha-bigdata.ga4_historical_us.ga4_traffic_sources_historical`
-    WHERE date BETWEEN DATE('{data_inicio}') AND DATE('{data_fim}')
+    WHERE DATE(date) BETWEEN DATE('{data_inicio}') AND DATE('{data_fim}')
     GROUP BY data, canal, origem, meio, dispositivo
     """
     return client.query(query).to_dataframe()
@@ -320,7 +320,7 @@ def load_ga4_events(data_inicio, data_fim):
       SUM(eventCount) AS total_eventos,
       SUM(totalUsers) AS usuarios
     FROM `buddha-bigdata.ga4_historical_us.ga4_events_historical`
-    WHERE date BETWEEN DATE('{data_inicio}') AND DATE('{data_fim}')
+    WHERE DATE(date) BETWEEN DATE('{data_inicio}') AND DATE('{data_fim}')
     GROUP BY data, evento, canal
     """
     return client.query(query).to_dataframe()
