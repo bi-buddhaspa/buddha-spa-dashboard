@@ -270,21 +270,22 @@ def load_ecommerce_data(data_inicio, data_fim):
     return client.query(query).to_dataframe()
 
 # -----------------------------------------------------------------------------
-# FUNÇÕES DE DADOS – GA4 (CORRIGIDAS)
+# FUNÇÕES DE DADOS – GA4 (CORREÇÃO FINAL DE TIPOS E DATA)
 # -----------------------------------------------------------------------------
 @st.cache_data(ttl=3600)
 def load_ga4_pages(data_inicio, data_fim):
     client = get_bigquery_client()
+    # Converte string YYYYMMDD para DATE e faz cast de métricas para FLOAT64
     query = f"""
     SELECT
-      DATE(date) AS data,
+      PARSE_DATE('%Y%m%d', CAST(date AS STRING)) AS data,
       pagePath AS page_path,
       pageTitle AS page_title,
-      screenPageViews AS page_views,
-      totalUsers AS usuarios,
-      averageSessionDuration AS duracao_media_sessao
+      CAST(screenPageViews AS FLOAT64) AS page_views,
+      CAST(totalUsers AS FLOAT64) AS usuarios,
+      CAST(averageSessionDuration AS FLOAT64) AS duracao_media_sessao
     FROM `buddha-bigdata.ga4_historical_us.ga4_pages_historical`
-    WHERE DATE(date) BETWEEN DATE('{data_inicio}') AND DATE('{data_fim}')
+    WHERE PARSE_DATE('%Y%m%d', CAST(date AS STRING)) BETWEEN DATE('{data_inicio}') AND DATE('{data_fim}')
     """
     return client.query(query).to_dataframe()
 
@@ -293,18 +294,18 @@ def load_ga4_traffic(data_inicio, data_fim):
     client = get_bigquery_client()
     query = f"""
     SELECT
-      DATE(date) AS data,
+      PARSE_DATE('%Y%m%d', CAST(date AS STRING)) AS data,
       sessionDefaultChannelGrouping AS canal,
       sessionSource AS origem,
       sessionMedium AS meio,
       deviceCategory AS dispositivo,
-      SUM(sessions) AS sessoes,
-      SUM(totalUsers) AS usuarios,
-      SUM(newUsers) AS novos_usuarios,
-      SUM(screenPageViews) AS pageviews,
-      SUM(userEngagementDuration) AS duracao_engajamento
+      SUM(CAST(sessions AS FLOAT64)) AS sessoes,
+      SUM(CAST(totalUsers AS FLOAT64)) AS usuarios,
+      SUM(CAST(newUsers AS FLOAT64)) AS novos_usuarios,
+      SUM(CAST(screenPageViews AS FLOAT64)) AS pageviews,
+      SUM(CAST(userEngagementDuration AS FLOAT64)) AS duracao_engajamento
     FROM `buddha-bigdata.ga4_historical_us.ga4_traffic_sources_historical`
-    WHERE DATE(date) BETWEEN DATE('{data_inicio}') AND DATE('{data_fim}')
+    WHERE PARSE_DATE('%Y%m%d', CAST(date AS STRING)) BETWEEN DATE('{data_inicio}') AND DATE('{data_fim}')
     GROUP BY data, canal, origem, meio, dispositivo
     """
     return client.query(query).to_dataframe()
@@ -314,13 +315,13 @@ def load_ga4_events(data_inicio, data_fim):
     client = get_bigquery_client()
     query = f"""
     SELECT
-      DATE(date) AS data,
+      PARSE_DATE('%Y%m%d', CAST(date AS STRING)) AS data,
       eventName AS evento,
       sessionDefaultChannelGrouping AS canal,
-      SUM(eventCount) AS total_eventos,
-      SUM(totalUsers) AS usuarios
+      SUM(CAST(eventCount AS FLOAT64)) AS total_eventos,
+      SUM(CAST(totalUsers AS FLOAT64)) AS usuarios
     FROM `buddha-bigdata.ga4_historical_us.ga4_events_historical`
-    WHERE DATE(date) BETWEEN DATE('{data_inicio}') AND DATE('{data_fim}')
+    WHERE PARSE_DATE('%Y%m%d', CAST(date AS STRING)) BETWEEN DATE('{data_inicio}') AND DATE('{data_fim}')
     GROUP BY data, evento, canal
     """
     return client.query(query).to_dataframe()
