@@ -20,7 +20,7 @@ USUARIOS = {
     'joao.silva@buddhaspa.com.br': {
         'senha': '12345',
         'nome': 'João Silva',
-        'unidade': 'buddha spa - higienópolis'   # tem que bater com o texto da coluna unidade
+        'unidade': 'buddha spa - higienópolis'
     },
     'leandro.santos@buddhaspa.com.br': {
         'senha': '625200',
@@ -101,14 +101,12 @@ st.markdown("""
         color: #8B0000 !important;
         font-size: 0.85rem !important;
         font-weight: 600 !important;
-        white-space: normal !important;
     }
     .stMetric [data-testid="stMetricValue"] {
         color: #333333 !important;
         font-size: 1.6rem !important;
         font-weight: 700 !important;
         line-height: 1.1 !important;
-        white-space: normal !important;
     }
     h1 {
         color: #8B0000 !important;
@@ -151,21 +149,6 @@ st.markdown("""
         border-radius: 10px;
         padding: 10px;
     }
-    hr {
-        border-color: #8B0000;
-    }
-    .stMultiSelect [data-baseweb="tag"] {
-        background-color: #8B0000;
-    }
-    .stSlider [data-baseweb="slider"] [role="slider"] {
-        background-color: #8B0000;
-    }
-    .stCheckbox [data-baseweb="checkbox"] {
-        border-color: #8B0000;
-    }
-    .stCheckbox [data-baseweb="checkbox"]:checked {
-        background-color: #8B0000;
-    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -186,7 +169,7 @@ def get_bigquery_client():
         return bigquery.Client(project='buddha-bigdata')
 
 # -----------------------------------------------------------------------------
-# FUNÇÕES DE DADOS
+# FUNÇÕES DE DADOS – ATENDIMENTO / FINANCEIRO
 # -----------------------------------------------------------------------------
 @st.cache_data(ttl=3600)
 def load_atendimentos(data_inicio, data_fim, unidade_filtro=None):
@@ -219,7 +202,6 @@ def load_atendimentos(data_inicio, data_fim, unidade_filtro=None):
 
 @st.cache_data(ttl=3600)
 def load_atendimentos_detalhados(data_inicio, data_fim, unidade_filtro=None):
-    """Item a item – para serviços mais vendidos, etc."""
     client = get_bigquery_client()
 
     filtro_unidade = ""
@@ -287,23 +269,113 @@ def load_ecommerce_data(data_inicio, data_fim):
     """
     return client.query(query).to_dataframe()
 
+# -----------------------------------------------------------------------------
+# FUNÇÕES DE DADOS – GA4
+# -----------------------------------------------------------------------------
 @st.cache_data(ttl=3600)
 def load_ga4_pages(data_inicio, data_fim):
-    """Exemplo – ajuste os nomes de colunas se na sua tabela forem diferentes."""
     client = get_bigquery_client()
     query = f"""
     SELECT
-      DATE(event_date) AS data,
-      page_path,
-      page_title,
-      device_category,
-      session_default_channel_group AS canal,
+      DATE(date) AS data,
+      pagePath AS page_path,
+      pageTitle AS page_title,
+      screenPageViews AS page_views,
+      totalUsers AS usuarios,
+      averageSessionDuration AS duracao_media_sessao
+    FROM `buddha-bigdata.ga4_historical_us.ga4_pages_historical`
+    WHERE date BETWEEN DATE('{data_inicio}') AND DATE('{data_fim}')
+    """
+    return client.query(query).to_dataframe()
+
+@st.cache_data(ttl=3600)
+def load_ga4_traffic(data_inicio, data_fim):
+    client = get_bigquery_client()
+    query = f"""
+    SELECT
+      DATE(date) AS data,
+      sessionDefaultChannelGrouping AS canal,
+      sessionSource AS origem,
+      sessionMedium AS meio,
+      deviceCategory AS dispositivo,
       SUM(sessions) AS sessoes,
-      SUM(total_users) AS usuarios,
-      SUM(new_users) AS novos_usuarios
-    FROM `buddha-bigdata.analytics.ga4_pages_historical`
-    WHERE event_date BETWEEN DATE('{data_inicio}') AND DATE('{data_fim}')
-    GROUP BY data, page_path, page_title, device_category, canal
+      SUM(totalUsers) AS usuarios,
+      SUM(newUsers) AS novos_usuarios,
+      SUM(screenPageViews) AS pageviews,
+      SUM(userEngagementDuration) AS duracao_engajamento
+    FROM `buddha-bigdata.ga4_historical_us.ga4_traffic_sources_historical`
+    WHERE date BETWEEN DATE('{data_inicio}') AND DATE('{data_fim}')
+    GROUP BY data, canal, origem, meio, dispositivo
+    """
+    return client.query(query).to_dataframe()
+
+@st.cache_data(ttl=3600)
+def load_ga4_events(data_inicio, data_fim):
+    client = get_bigquery_client()
+    query = f"""
+    SELECT
+      DATE(date) AS data,
+      eventName AS evento,
+      sessionDefaultChannelGrouping AS canal,
+      SUM(eventCount) AS total_eventos,
+      SUM(totalUsers) AS usuarios
+    FROM `buddha-bigdata.ga4_historical_us.ga4_events_historical`
+    WHERE date BETWEEN DATE('{data_inicio}') AND DATE('{data_fim}')
+    GROUP BY data, evento, canal
+    """
+    return client.query(query).to_dataframe()
+
+# -----------------------------------------------------------------------------
+# FUNÇÕES – INSTAGRAM / META ADS
+# -----------------------------------------------------------------------------
+@st.cache_data(ttl=3600)
+def load_instagram_posts(data_inicio, data_fim):
+    client = get_bigquery_client()
+    query = f"""
+    SELECT
+      DATE(data) AS data_post,
+      nome,
+      visualizacoes,
+      compartilhamentos,
+      curtidas,
+      comentarios,
+      impressoes,
+      alcance,
+      vendas,
+      id_post
+    FROM `buddha-bigdata.raw.instagram_posts`
+    WHERE DATE(data) BETWEEN DATE('{data_inicio}') AND DATE('{data_fim}')
+    """
+    return client.query(query).to_dataframe()
+
+@st.cache_data(ttl=3600)
+def load_instagram_seguidores(data_inicio, data_fim):
+    client = get_bigquery_client()
+    query = f"""
+    SELECT
+      DATE(data) AS data_registro,
+      qtd_seguidores
+    FROM `buddha-bigdata.raw.instagram_seguidores`
+    WHERE DATE(data) BETWEEN DATE('{data_inicio}') AND DATE('{data_fim}')
+    ORDER BY data_registro
+    """
+    return client.query(query).to_dataframe()
+
+@st.cache_data(ttl=3600)
+def load_meta_ads(data_inicio, data_fim):
+    client = get_bigquery_client()
+    query = f"""
+    SELECT
+      DATE(data) AS data,
+      nome,
+      impressoes,
+      alcance,
+      cliques,
+      vendas,
+      investido,
+      vendas_valor
+    FROM `buddha-bigdata.raw.meta_ads`
+    WHERE DATE(data) BETWEEN DATE('{data_inicio}') AND DATE('{data_fim}')
     """
     return client.query(query).to_dataframe()
 
@@ -339,7 +411,7 @@ else:
     st.sidebar.info(f"Você está visualizando apenas: **{unidade_usuario}**")
 
 # -----------------------------------------------------------------------------
-# CARREGAR DADOS
+# CARREGAR DADOS PRINCIPAIS
 # -----------------------------------------------------------------------------
 with st.spinner("Carregando dados de atendimentos..."):
     try:
@@ -366,29 +438,26 @@ data_col = 'data_atendimento'
 valor_col = 'valor_liquido'
 
 # -----------------------------------------------------------------------------
-# HEADER
+# HEADER / KPIs
 # -----------------------------------------------------------------------------
 st.title("Buddha Spa - Dashboard de Unidades")
 st.caption(f"Período: {data_inicio.strftime('%d/%m/%Y')} a {data_fim.strftime('%d/%m/%Y')}")
 
-# -----------------------------------------------------------------------------
-# KPIs PRINCIPAIS
-# -----------------------------------------------------------------------------
 receita_total = df[valor_col].sum()
 qtd_atendimentos = int(df['id_venda'].nunique())
 qtd_clientes = int(df['nome_cliente'].nunique()) if 'nome_cliente' in df.columns else 0
 ticket_medio = receita_total / qtd_atendimentos if qtd_atendimentos > 0 else 0
 
-col1, col2, col3, col4 = st.columns(4)
-col1.metric("Receita Total", f"R$ {receita_total:,.2f}")
-col2.metric("Quantidade de Atendimentos", f"{qtd_atendimentos:,d}")
-col3.metric("Clientes Únicos", f"{qtd_clientes:,d}")
-col4.metric("Ticket Médio por Atendimento", f"R$ {ticket_medio:,.2f}")
+colk1, colk2, colk3, colk4 = st.columns(4)
+colk1.metric("Receita Total", f"R$ {receita_total:,.2f}")
+colk2.metric("Quantidade de Atendimentos", f"{qtd_atendimentos:,d}")
+colk3.metric("Clientes Únicos", f"{qtd_clientes:,d}")
+colk4.metric("Ticket Médio por Atendimento", f"R$ {ticket_medio:,.2f}")
 
 st.divider()
 
 # -----------------------------------------------------------------------------
-# TABS PRINCIPAIS
+# TABS
 # -----------------------------------------------------------------------------
 tab_visao, tab_atend, tab_fin, tab_mkt, tab_selfservice, tab_gloss = st.tabs(
     ["Visão Geral", "Atendimento", "Financeiro", "Marketing & Ecommerce", "Self-Service", "Ajuda / Glossário"]
@@ -458,9 +527,9 @@ with tab_atend:
         df_terap['ticket_medio'] = df_terap['receita'] / df_terap['qtd_atendimentos']
         df_terap = df_terap.sort_values('receita', ascending=False)
 
-        col_a, col_b = st.columns([2, 1])
+        cola, colb = st.columns([2, 1])
 
-        with col_a:
+        with cola:
             st.markdown("### Top Terapeutas por Receita")
             top_terap = df_terap.head(15)
             fig_t = px.bar(
@@ -482,7 +551,7 @@ with tab_atend:
             )
             st.plotly_chart(fig_t, use_container_width=True)
 
-        with col_b:
+        with colb:
             st.markdown("### Tabela de Performance")
             st.dataframe(
                 df_terap.style.format({
@@ -506,11 +575,11 @@ with tab_atend:
             .rename(columns={'sum': 'receita', 'count': 'qtd'})
         )
         df_servicos['perc_receita'] = df_servicos['receita'] / df_servicos['receita'].sum()
-        df_servicos = df_servicos.sort_values('receita', ascending=False).take(range(0, min(15, len(df_servicos))))
+        df_servicos = df_servicos.sort_values('receita', ascending=False).head(15)
 
-        col1_s, col2_s = st.columns([2, 1])
+        cols1, cols2 = st.columns([2, 1])
 
-        with col1_s:
+        with cols1:
             fig_s = px.bar(
                 df_servicos,
                 x='receita',
@@ -527,7 +596,7 @@ with tab_atend:
             )
             st.plotly_chart(fig_s, use_container_width=True)
 
-        with col2_s:
+        with cols2:
             st.dataframe(
                 df_servicos.rename(columns={
                     'nome_servico_simplificado': 'Serviço',
@@ -772,48 +841,48 @@ with tab_mkt:
 
     st.markdown("---")
 
-    # BLOCO 2 – SITE / GA4
-    st.subheader("Site – Sessões por Página (GA4)")
+    # BLOCO 2 – SITE / GA4 PÁGINAS
+    st.subheader("Site – Pageviews por Página (GA4)")
 
-    with st.spinner("Carregando dados de GA4..."):
+    with st.spinner("Carregando dados de páginas GA4..."):
         try:
-            df_ga4 = load_ga4_pages(data_inicio, data_fim)
+            df_ga4_pages = load_ga4_pages(data_inicio, data_fim)
         except Exception as e:
-            st.error(f"Erro ao carregar GA4: {e}")
-            df_ga4 = pd.DataFrame()
+            st.error(f"Erro ao carregar GA4 páginas: {e}")
+            df_ga4_pages = pd.DataFrame()
 
-    if df_ga4.empty:
-        st.warning("Sem dados de GA4 para o período selecionado.")
+    if df_ga4_pages.empty:
+        st.warning("Sem dados de páginas GA4 para o período selecionado.")
     else:
-        df_ga4['tipo_pagina'] = 'Outras'
-        df_ga4.loc[df_ga4['page_path'].str.contains('franquia', case=False, na=False), 'tipo_pagina'] = 'Franquias'
-        df_ga4.loc[df_ga4['page_path'].str.contains('voucher', case=False, na=False), 'tipo_pagina'] = 'Ecommerce'
-        df_ga4.loc[df_ga4['page_path'].str.contains('curso', case=False, na=False), 'tipo_pagina'] = 'Cursos'
+        df_ga4_pages['tipo_pagina'] = 'Outras'
+        df_ga4_pages.loc[df_ga4_pages['page_path'].str.contains('franquia', case=False, na=False), 'tipo_pagina'] = 'Franquias'
+        df_ga4_pages.loc[df_ga4_pages['page_path'].str.contains('voucher', case=False, na=False), 'tipo_pagina'] = 'Ecommerce'
+        df_ga4_pages.loc[df_ga4_pages['page_path'].str.contains('curso', case=False, na=False), 'tipo_pagina'] = 'Cursos'
 
         colg1, colg2, colg3 = st.columns(3)
 
-        total_sessoes = int(df_ga4['sessoes'].sum())
-        total_usuarios = int(df_ga4['usuarios'].sum())
-        total_novos = int(df_ga4['novos_usuarios'].sum())
+        total_pageviews = int(df_ga4_pages['page_views'].sum())
+        total_usuarios = int(df_ga4_pages['usuarios'].sum())
+        duracao_media = df_ga4_pages['duracao_media_sessao'].mean() if not df_ga4_pages['duracao_media_sessao'].isna().all() else 0
 
-        colg1.metric("Sessões Totais (Site)", f"{total_sessoes:,d}")
+        colg1.metric("Pageviews Totais (Site)", f"{total_pageviews:,d}")
         colg2.metric("Usuários Totais", f"{total_usuarios:,d}")
-        colg3.metric("Novos Usuários", f"{total_novos:,d}")
+        colg3.metric("Duração Média da Sessão (s)", f"{duracao_media:,.1f}")
 
-        st.markdown("### Sessões por Tipo de Página")
+        st.markdown("### Pageviews por Tipo de Página")
         df_tipo = (
-            df_ga4.groupby('tipo_pagina')['sessoes']
+            df_ga4_pages.groupby('tipo_pagina')['page_views']
             .sum()
             .reset_index()
-            .sort_values('sessoes', ascending=False)
+            .sort_values('page_views', ascending=False)
         )
 
         fig_pag = px.bar(
             df_tipo,
-            x='sessoes',
+            x='page_views',
             y='tipo_pagina',
             orientation='h',
-            labels={'sessoes': 'Sessões', 'tipo_pagina': 'Tipo de Página'}
+            labels={'page_views': 'Pageviews', 'tipo_pagina': 'Tipo de Página'}
         )
         fig_pag.update_traces(marker_color='#8B0000')
         fig_pag.update_layout(
@@ -823,9 +892,34 @@ with tab_mkt:
         )
         st.plotly_chart(fig_pag, use_container_width=True)
 
-        st.markdown("### Canais de Aquisição (GA4)")
+    st.markdown("---")
+
+    # BLOCO 3 – SITE / GA4 TRÁFEGO
+    st.subheader("Site – Canais de Aquisição (GA4)")
+
+    with st.spinner("Carregando dados de tráfego GA4..."):
+        try:
+            df_ga4_traffic = load_ga4_traffic(data_inicio, data_fim)
+        except Exception as e:
+            st.error(f"Erro ao carregar GA4 tráfego: {e}")
+            df_ga4_traffic = pd.DataFrame()
+
+    if df_ga4_traffic.empty:
+        st.warning("Sem dados de tráfego GA4 para o período selecionado.")
+    else:
+        colt1, colt2, colt3 = st.columns(3)
+
+        total_sessoes = int(df_ga4_traffic['sessoes'].sum())
+        total_usuarios_t = int(df_ga4_traffic['usuarios'].sum())
+        total_novos = int(df_ga4_traffic['novos_usuarios'].sum())
+
+        colt1.metric("Sessões Totais", f"{total_sessoes:,d}")
+        colt2.metric("Usuários Totais", f"{total_usuarios_t:,d}")
+        colt3.metric("Novos Usuários", f"{total_novos:,d}")
+
+        st.markdown("### Sessões por Canal")
         df_canal = (
-            df_ga4.groupby('canal')['sessoes']
+            df_ga4_traffic.groupby('canal')['sessoes']
             .sum()
             .reset_index()
             .sort_values('sessoes', ascending=False)
@@ -833,8 +927,9 @@ with tab_mkt:
 
         fig_can = px.bar(
             df_canal,
-            x='canal',
-            y='sessoes',
+            x='sessoes',
+            y='canal',
+            orientation='h',
             labels={'canal': 'Canal', 'sessoes': 'Sessões'}
         )
         fig_can.update_traces(marker_color='#A52A2A')
@@ -845,11 +940,282 @@ with tab_mkt:
         )
         st.plotly_chart(fig_can, use_container_width=True)
 
+        st.markdown("### Sessões por Dispositivo")
+        df_disp = (
+            df_ga4_traffic.groupby('dispositivo')['sessoes']
+            .sum()
+            .reset_index()
+            .sort_values('sessoes', ascending=False)
+        )
+
+        fig_disp = px.pie(
+            df_disp,
+            names='dispositivo',
+            values='sessoes',
+            labels={'dispositivo': 'Dispositivo', 'sessoes': 'Sessões'}
+        )
+        fig_disp.update_layout(
+            paper_bgcolor='#F5F0E6',
+            height=400
+        )
+        st.plotly_chart(fig_disp, use_container_width=True)
+
     st.markdown("---")
 
-    # BLOCO 3 – SEGUIDORES (placeholder – depende da tabela)
-    st.subheader("Redes Sociais – Seguidores")
-    st.info("Assim que você me passar o nome da tabela com seguidores no BigQuery, eu coloco aqui o gráfico de crescimento e ranking de perfis.")
+    # BLOCO 4 – EVENTOS GA4
+    st.subheader("Site – Eventos Principais (GA4)")
+
+    with st.spinner("Carregando eventos GA4..."):
+        try:
+            df_ga4_events = load_ga4_events(data_inicio, data_fim)
+        except Exception as e:
+            st.error(f"Erro ao carregar eventos GA4: {e}")
+            df_ga4_events = pd.DataFrame()
+
+    if df_ga4_events.empty:
+        st.warning("Sem dados de eventos GA4 para o período selecionado.")
+    else:
+        eventos_interesse = ['form_submit', 'form_start', 'click', 'RD Popup e WhatsApp', 'RD Landing Pages']
+        df_eventos_filtro = df_ga4_events[df_ga4_events['evento'].isin(eventos_interesse)]
+
+        if df_eventos_filtro.empty:
+            st.info("Nenhum evento de interesse (form_submit, click, etc.) encontrado no período.")
+        else:
+            df_eventos_agg = (
+                df_eventos_filtro.groupby('evento')['total_eventos']
+                .sum()
+                .reset_index()
+                .sort_values('total_eventos', ascending=False)
+            )
+
+            fig_ev = px.bar(
+                df_eventos_agg,
+                x='total_eventos',
+                y='evento',
+                orientation='h',
+                labels={'total_eventos': 'Total de Eventos', 'evento': 'Evento'}
+            )
+            fig_ev.update_traces(marker_color='#8B0000')
+            fig_ev.update_layout(
+                plot_bgcolor='#FFFFFF',
+                paper_bgcolor='#F5F0E6',
+                height=400
+            )
+            st.plotly_chart(fig_ev, use_container_width=True)
+
+    st.markdown("---")
+
+    # BLOCO 5 – INSTAGRAM POSTS
+    st.subheader("Redes Sociais – Posts com Melhor Performance (Instagram)")
+
+    with st.spinner("Carregando posts do Instagram..."):
+        try:
+            df_ig = load_instagram_posts(data_inicio, data_fim)
+        except Exception as e:
+            st.error(f"Erro ao carregar instagram_posts: {e}")
+            df_ig = pd.DataFrame()
+
+    if df_ig.empty:
+        st.info("Sem posts do Instagram para o período selecionado.")
+    else:
+        for col in ['visualizacoes', 'compartilhamentos', 'curtidas', 'comentarios', 'impressoes', 'alcance', 'vendas']:
+            if col in df_ig.columns:
+                df_ig[col] = pd.to_numeric(df_ig[col], errors='coerce').fillna(0)
+
+        coli1, coli2, coli3, coli4 = st.columns(4)
+        total_posts = len(df_ig)
+        total_curtidas = int(df_ig['curtidas'].sum())
+        total_coment = int(df_ig['comentarios'].sum())
+        total_impressoes = int(df_ig['impressoes'].sum()) if 'impressoes' in df_ig.columns else 0
+
+        coli1.metric("Total de Posts", f"{total_posts:,d}")
+        coli2.metric("Total de Curtidas", f"{total_curtidas:,d}")
+        coli3.metric("Total de Comentários", f"{total_coment:,d}")
+        coli4.metric("Total de Impressões", f"{total_impressoes:,d}")
+
+        st.markdown("### Top 10 Posts por Engajamento (Curtidas + Comentários)")
+        df_ig['engajamento'] = df_ig['curtidas'] + df_ig['comentarios']
+        df_top_eng = (
+            df_ig.sort_values('engajamento', ascending=False)
+            .head(10)
+            .copy()
+        )
+        df_top_eng['legenda_curta'] = df_top_eng['nome'].str.slice(0, 60) + "..."
+
+        colg_a, colg_b = st.columns([2, 1])
+
+        with colg_a:
+            fig_ig = px.bar(
+                df_top_eng,
+                x='engajamento',
+                y='legenda_curta',
+                orientation='h',
+                labels={'engajamento': 'Engajamento (Curtidas + Comentários)', 'legenda_curta': 'Post'},
+                text='engajamento'
+            )
+            fig_ig.update_traces(marker_color='#8B0000', textposition='outside')
+            fig_ig.update_layout(
+                plot_bgcolor='#FFFFFF',
+                paper_bgcolor='#F5F0E6',
+                height=500
+            )
+            st.plotly_chart(fig_ig, use_container_width=True)
+
+        with colg_b:
+            st.markdown("#### Detalhes dos Top Posts")
+            st.dataframe(
+                df_top_eng[[
+                    'data_post', 'nome', 'visualizacoes', 'curtidas', 'comentarios', 'compartilhamentos', 'alcance'
+                ]].rename(columns={
+                    'data_post': 'Data',
+                    'nome': 'Legenda',
+                    'visualizacoes': 'Visualizações',
+                    'curtidas': 'Curtidas',
+                    'comentarios': 'Comentários',
+                    'compartilhamentos': 'Compart.',
+                    'alcance': 'Alcance'
+                }),
+                use_container_width=True,
+                height=500
+            )
+
+    st.markdown("---")
+
+    # BLOCO 6 – SEGUIDORES INSTAGRAM
+    st.subheader("Redes Sociais – Crescimento de Seguidores (Instagram)")
+
+    with st.spinner("Carregando dados de seguidores..."):
+        try:
+            df_seg = load_instagram_seguidores(data_inicio, data_fim)
+        except Exception as e:
+            st.error(f"Erro ao carregar instagram_seguidores: {e}")
+            df_seg = pd.DataFrame()
+
+    if df_seg.empty:
+        st.info("Sem dados de seguidores para o período selecionado.")
+    else:
+        df_seg['qtd_seguidores'] = pd.to_numeric(df_seg['qtd_seguidores'], errors='coerce')
+        df_seg = df_seg.sort_values('data_registro')
+
+        seg_inicio = int(df_seg.iloc[0]['qtd_seguidores']) if len(df_seg) > 0 else 0
+        seg_fim = int(df_seg.iloc[-1]['qtd_seguidores']) if len(df_seg) > 0 else 0
+        crescimento = seg_fim - seg_inicio
+        perc_crescimento = (crescimento / seg_inicio * 100) if seg_inicio > 0 else 0
+
+        cols1, cols2, cols3 = st.columns(3)
+        cols1.metric("Seguidores Atuais", f"{seg_fim:,d}")
+        cols2.metric("Crescimento no Período", f"{crescimento:+,d}", delta=f"{perc_crescimento:+.2f}%")
+        cols3.metric("Seguidores no Início", f"{seg_inicio:,d}")
+
+        st.markdown("### Evolução de Seguidores")
+        fig_seg = px.line(
+            df_seg,
+            x='data_registro',
+            y='qtd_seguidores',
+            markers=True,
+            labels={'data_registro': 'Data', 'qtd_seguidores': 'Seguidores'}
+        )
+        fig_seg.update_traces(line_color='#8B0000', marker=dict(color='#8B0000'))
+        fig_seg.update_layout(
+            plot_bgcolor='#FFFFFF',
+            paper_bgcolor='#F5F0E6',
+            height=400
+        )
+        st.plotly_chart(fig_seg, use_container_width=True)
+
+    st.markdown("---")
+
+    # BLOCO 7 – META ADS
+    st.subheader("Mídia Paga – Meta Ads")
+
+    with st.spinner("Carregando dados de Meta Ads..."):
+        try:
+            df_meta = load_meta_ads(data_inicio, data_fim)
+        except Exception as e:
+            st.error(f"Erro ao carregar meta_ads: {e}")
+            df_meta = pd.DataFrame()
+
+    if df_meta.empty:
+        st.info("Sem dados de Meta Ads para o período selecionado.")
+    else:
+        for col in ['impressoes', 'alcance', 'cliques', 'vendas', 'investido', 'vendas_valor']:
+            if col in df_meta.columns:
+                df_meta[col] = pd.to_numeric(df_meta[col], errors='coerce').fillna(0)
+
+        m1, m2, m3, m4 = st.columns(4)
+        total_imp = int(df_meta['impressoes'].sum())
+        total_clicks = int(df_meta['cliques'].sum())
+        total_invest = df_meta['investido'].sum()
+        total_vendas_valor = df_meta['vendas_valor'].sum()
+
+        ctr = (total_clicks / total_imp * 100) if total_imp > 0 else 0
+        roi = ((total_vendas_valor - total_invest) / total_invest * 100) if total_invest > 0 else 0
+
+        m1.metric("Impressões", f"{total_imp:,d}")
+        m2.metric("Cliques", f"{total_clicks:,d}", delta=f"CTR {ctr:.2f}%")
+        m3.metric("Investimento (R$)", f"R$ {total_invest:,.2f}")
+        m4.metric("Receita Atribuída (R$)", f"R$ {total_vendas_valor:,.2f}", delta=f"ROI {roi:.1f}%")
+
+        st.markdown("### Campanhas com Maior Investimento")
+
+        df_meta_camp = (
+            df_meta
+            .groupby('nome')
+            .agg(
+                impressoes=('impressoes', 'sum'),
+                cliques=('cliques', 'sum'),
+                vendas=('vendas', 'sum'),
+                investido=('investido', 'sum'),
+                vendas_valor=('vendas_valor', 'sum')
+            )
+            .reset_index()
+        )
+        df_meta_camp['ctr'] = df_meta_camp['cliques'] / df_meta_camp['impressoes']
+        df_meta_camp['cpc'] = df_meta_camp['investido'] / df_meta_camp['cliques']
+        df_meta_camp['roi'] = (df_meta_camp['vendas_valor'] - df_meta_camp['investido']) / df_meta_camp['investido']
+
+        df_meta_top = df_meta_camp.sort_values('investido', ascending=False).head(10)
+
+        fig_meta = px.bar(
+            df_meta_top,
+            x='investido',
+            y='nome',
+            orientation='h',
+            labels={'investido': 'Investimento (R$)', 'nome': 'Campanha'}
+        )
+        fig_meta.update_traces(marker_color='#8B0000')
+        fig_meta.update_layout(
+            plot_bgcolor='#FFFFFF',
+            paper_bgcolor='#F5F0E6',
+            height=450
+        )
+        st.plotly_chart(fig_meta, use_container_width=True)
+
+        st.markdown("#### Detalhes das Campanhas (Top 10 por Investimento)")
+        st.dataframe(
+            df_meta_top.rename(columns={
+                'nome': 'Campanha',
+                'impressoes': 'Impressões',
+                'cliques': 'Cliques',
+                'vendas': 'Vendas',
+                'investido': 'Investido (R$)',
+                'vendas_valor': 'Receita (R$)',
+                'ctr': 'CTR',
+                'cpc': 'CPC',
+                'roi': 'ROI'
+            }).style.format({
+                'Impressões': '{:,.0f}',
+                'Cliques': '{:,.0f}',
+                'Vendas': '{:,.0f}',
+                'Investido (R$)': 'R$ {:,.2f}',
+                'Receita (R$)': 'R$ {:,.2f}',
+                'CTR': '{:.2%}',
+                'CPC': 'R$ {:,.2f}',
+                'ROI': '{:.1%}'
+            }),
+            use_container_width=True,
+            height=450
+        )
 
 # ---------------------- TAB: SELF-SERVICE -------------------------
 with tab_selfservice:
@@ -917,29 +1283,20 @@ with tab_gloss:
     st.markdown("""
     ### 📊 Principais Métricas
 
-    **Receita Total**  
-    Soma de todos os valores líquidos de atendimentos no período selecionado.
+    **Receita Total** – Soma de todos os valores líquidos de atendimentos no período.  
+    **Quantidade de Atendimentos** – Número de atendimentos únicos (`id_venda`).  
+    **Clientes Únicos** – Número de clientes distintos atendidos.  
+    **Ticket Médio por Atendimento** – Receita Total ÷ Quantidade de Atendimentos.  
 
-    **Quantidade de Atendimentos**  
-    Número de atendimentos únicos (id_venda) realizados no período.
+    **Serviços Presenciais Mais Vendidos** – Ranking de serviços presenciais por receita e quantidade.  
+    **Itens Ecommerce Mais Vendidos** – Ranking de serviços/pacotes vendidos no ecommerce (vouchers).  
 
-    **Clientes Únicos**  
-    Número de clientes distintos que foram atendidos.
+    **Pageviews (GA4)** – Visualizações de página no site / páginas-chave.  
+    **Sessões (GA4)** – Sessões por canal de aquisição (Direct, Organic, Paid, Social etc.).  
+    **Eventos (GA4)** – Eventos como `form_submit`, cliques, WhatsApp etc.  
 
-    **Ticket Médio por Atendimento**  
-    Receita Total ÷ Quantidade de Atendimentos.
-
-    **Serviços Presenciais Mais Vendidos**  
-    Ranking de serviços da tabela de atendimentos presenciais (itens_atendimentos_analytics), por receita e quantidade.
-
-    **Itens Ecommerce Mais Vendidos**  
-    Ranking de serviços/pacotes vendidos no ecommerce (vouchers), por receita líquida e quantidade de vouchers.
-
-    **Sessões (Site / GA4)**  
-    Número de sessões registradas pelo Google Analytics 4 no período.
-
-    **Canais de Aquisição**  
-    Origem do tráfego das sessões (Direct, Organic, Paid, Social, etc.), segundo GA4.
+    **Seguidores Instagram** – Evolução de `qtd_seguidores` ao longo do tempo.  
+    **Meta Ads** – Impressões, cliques, investimento, vendas e ROI das campanhas.
     """)
 
 st.caption("Buddha Spa Dashboard – Portal de Franqueados")
