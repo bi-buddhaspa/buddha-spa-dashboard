@@ -3,7 +3,6 @@ import pandas as pd
 import plotly.express as px
 from google.cloud import bigquery
 from datetime import datetime
-import streamlit_authenticator as stauth
 
 # -----------------------------------------------------------------------------
 # CONFIGURAÇÃO DA PÁGINA
@@ -15,56 +14,68 @@ st.set_page_config(
 )
 
 # -----------------------------------------------------------------------------
-# SISTEMA DE AUTENTICAÇÃO
+# SISTEMA DE AUTENTICAÇÃO SIMPLES
 # -----------------------------------------------------------------------------
-config = {
-    'credentials': {
-        'usernames': {
-            'joao.silva': {
-                'email': 'joao.silva@buddhaspa.com.br',
-                'name': 'João Silva',
-                'password': stauth.Hasher(['senha123']).generate()[0],
-                'unidade': 'buddha spa - higienópolis'
-            },
-            'leandro.santos': {
-                'email': 'leandro.santos@buddhaspa.com.br',
-                'name': 'Leandro Santos',
-                'password': stauth.Hasher(['admin123']).generate()[0],
-                'unidade': 'TODAS'
-            }
-        }
+USUARIOS = {
+    'joao.silva@buddhaspa.com.br': {
+        'senha': '12345',
+        'nome': 'João Silva',
+        'unidade': 'buddha spa - higienópolis'
     },
-    'cookie': {
-        'expiry_days': 30,
-        'key': 'buddha_spa_auth',
-        'name': 'buddha_spa_cookie'
-    },
-    'preauthorized': {
-        'emails': []
+    'leandro.santos@buddhaspa.com.br': {
+        'senha': '625200',
+        'nome': 'Leandro Santos',
+        'unidade': 'TODAS'
     }
 }
 
-authenticator = stauth.Authenticate(
-    config['credentials'],
-    config['cookie']['name'],
-    config['cookie']['key'],
-    config['cookie']['expiry_days'],
-    config['preauthorized']
-)
+if 'autenticado' not in st.session_state:
+    st.session_state.autenticado = False
+    st.session_state.usuario = None
+    st.session_state.nome = None
+    st.session_state.unidade = None
 
-name, authentication_status, username = authenticator.login('Portal de Franqueados - Buddha Spa', 'main')
+def fazer_login(email, senha):
+    if email in USUARIOS and USUARIOS[email]['senha'] == senha:
+        st.session_state.autenticado = True
+        st.session_state.usuario = email
+        st.session_state.nome = USUARIOS[email]['nome']
+        st.session_state.unidade = USUARIOS[email]['unidade']
+        return True
+    return False
 
-if authentication_status == False:
-    st.error('Usuário ou senha incorretos')
+def fazer_logout():
+    st.session_state.autenticado = False
+    st.session_state.usuario = None
+    st.session_state.nome = None
+    st.session_state.unidade = None
+
+if not st.session_state.autenticado:
+    st.markdown("""
+        <div style='text-align: center; padding: 50px;'>
+            <h1 style='color: #8B0000;'>🧘 Portal de Franqueados - Buddha Spa</h1>
+            <p style='color: #666;'>Faça login para acessar o dashboard</p>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns([1, 2, 1])
+    
+    with col2:
+        with st.form("login_form"):
+            email = st.text_input("Email", placeholder="seu.email@buddhaspa.com.br")
+            senha = st.text_input("Senha", type="password", placeholder="Digite sua senha")
+            submit = st.form_submit_button("Entrar", use_container_width=True)
+            
+            if submit:
+                if fazer_login(email, senha):
+                    st.success(f"Bem-vindo, {st.session_state.nome}!")
+                    st.rerun()
+                else:
+                    st.error("Email ou senha incorretos")
+    
     st.stop()
-elif authentication_status == None:
-    st.warning('Por favor, insira seu usuário e senha')
-    st.stop()
 
-st.sidebar.success(f'Bem-vindo, {name}!')
-authenticator.logout('Sair', 'sidebar')
-
-unidade_usuario = config['credentials']['usernames'][username]['unidade']
+unidade_usuario = st.session_state.unidade
 is_admin = (unidade_usuario == 'TODAS')
 
 # -----------------------------------------------------------------------------
@@ -280,6 +291,13 @@ def load_ecommerce_data(data_inicio, data_fim):
 # SIDEBAR – FILTROS
 # -----------------------------------------------------------------------------
 st.sidebar.title("Filtros")
+
+st.sidebar.success(f"Bem-vindo, {st.session_state.nome}!")
+if st.sidebar.button("Sair", use_container_width=True):
+    fazer_logout()
+    st.rerun()
+
+st.sidebar.markdown("---")
 
 col1, col2 = st.sidebar.columns(2)
 data_inicio = col1.date_input("De:", value=datetime(2025, 1, 1))
@@ -545,7 +563,11 @@ with tab_mkt:
     st.subheader("Ecommerce – Vendas de Vouchers")
 
     with st.spinner("Carregando dados de ecommerce..."):
-        df_ecom = load_ecommerce_data(data_inicio, data_fim)
+        try:
+            df_ecom = load_ecommerce_data(data_inicio, data_fim)
+        except Exception as e:
+            st.error(f"Erro ao carregar dados de ecommerce: {e}")
+            df_ecom = pd.DataFrame()
 
     if df_ecom.empty:
         st.warning("Sem dados de ecommerce para o período selecionado.")
@@ -686,17 +708,32 @@ with tab_gloss:
     st.subheader("Ajuda / Glossário de Métricas")
 
     st.markdown("""
+    ### 📊 Principais Métricas
+    
     **Receita Total**  
-    Soma de todos os valores líquidos de atendimentos no período.
+    Soma de todos os valores líquidos de atendimentos no período selecionado.
 
     **Quantidade de Atendimentos**  
-    Número de atendimentos únicos (id_venda) no período.
+    Número de atendimentos únicos (id_venda) realizados no período.
 
     **Clientes Únicos**  
-    Número de clientes distintos atendidos.
+    Número de clientes distintos que foram atendidos.
 
     **Ticket Médio por Atendimento**  
-    Receita Total ÷ Quantidade de Atendimentos
+    Receita Total ÷ Quantidade de Atendimentos. Representa o valor médio de cada atendimento.
+    
+    ---
+    
+    ### 🔐 Sobre o Sistema de Login
+    
+    - **Franqueados**: Visualizam apenas os dados da sua unidade
+    - **Administradores**: Têm acesso a todas as unidades e podem filtrar conforme necessário
+    
+    ---
+    
+    ### 📧 Suporte
+    
+    Em caso de dúvidas ou problemas, entre em contato com o time de TI da Buddha Spa.
     """)
 
-st.caption("Buddha Spa Dashboard – Portal de Franqueados")
+st.caption("Buddha Spa Dashboard – Portal de Franqueados | Desenvolvido com ❤️")
