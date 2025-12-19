@@ -239,8 +239,12 @@ def load_unidades():
     """
     return client.query(query).to_dataframe()['unidade'].tolist()
 
+# -----------------------------------------------------------------------------
+# FUNÇÕES DE DADOS – ECOMMERCE (CORRIGIDO)
+# -----------------------------------------------------------------------------
 @st.cache_data(ttl=3600)
-def load_ecommerce_data(data_inicio, data_fim):
+def load_ecommerce_vendas(data_inicio, data_fim):
+    """Carrega vouchers VENDIDOS (pela data de criação) - visão global"""
     client = get_bigquery_client()
     query = f"""
     SELECT 
@@ -257,14 +261,43 @@ def load_ecommerce_data(data_inicio, data_fim):
         s.PRICE_REFOUND, 
         s.KEY, 
         s.ORDER_ID, 
-        (SELECT p.NAME FROM `buddha-bigdata.raw.packages_raw` p WHERE p.ID = s.PACKAGE_ID) AS PACKAGE_NAME, 
-        (SELECT u.post_title FROM `buddha-bigdata.raw.wp_posts` u 
-         WHERE u.post_type = 'unidade' 
-           AND u.ID = CAST(CAST(s.AFILLIATION_ID AS FLOAT64) AS INT64)) AS AFILLIATION_NAME
+        (SELECT p.NAME FROM `buddha-bigdata.raw.packages_raw` p WHERE p.ID = s.PACKAGE_ID) AS PACKAGE_NAME
     FROM `buddha-bigdata.raw.ecommerce_raw` s
     WHERE 
         s.CREATED_DATE >= TIMESTAMP('{data_inicio} 00:00:00', 'America/Sao_Paulo')
-        AND s.CREATED_DATE <= TIMESTAMP('{data_fim} 23:59:59', 'America/Sao_Paulo')
+        AND s.CREATED_DATE < TIMESTAMP(DATE_ADD(DATE('{data_fim}'), INTERVAL 1 DAY), 'America/Sao_Paulo')
+        AND s.STATUS IN ('1','2','3')
+    """
+    return client.query(query).to_dataframe()
+
+@st.cache_data(ttl=3600)
+def load_ecommerce_usados(data_inicio, data_fim):
+    """Carrega vouchers USADOS (pela data de uso) - com unidade"""
+    client = get_bigquery_client()
+    query = f"""
+    SELECT 
+        s.ID,
+        s.NAME,
+        s.STATUS,
+        s.CREATED_DATE,
+        DATETIME(s.CREATED_DATE, "America/Sao_Paulo") AS CREATED_DATE_BRAZIL,
+        s.USED_DATE,
+        DATETIME(s.USED_DATE, "America/Sao_Paulo") AS USED_DATE_BRAZIL,
+        s.PRICE_NET,
+        s.PRICE_GROSS,
+        s.KEY,
+        s.ORDER_ID,
+        (SELECT p.NAME FROM `buddha-bigdata.raw.packages_raw` p WHERE p.ID = s.PACKAGE_ID) AS PACKAGE_NAME,
+        (SELECT u.post_title 
+           FROM `buddha-bigdata.raw.wp_posts` u 
+          WHERE u.post_type = 'unidade' 
+            AND u.ID = CAST(CAST(s.AFILLIATION_ID AS FLOAT64) AS INT64)
+        ) AS AFILLIATION_NAME
+    FROM `buddha-bigdata.raw.ecommerce_raw` s
+    WHERE 
+        s.USED_DATE IS NOT NULL
+        AND s.USED_DATE >= TIMESTAMP('{data_inicio} 00:00:00', 'America/Sao_Paulo')
+        AND s.USED_DATE < TIMESTAMP(DATE_ADD(DATE('{data_fim}'), INTERVAL 1 DAY), 'America/Sao_Paulo')
         AND s.STATUS IN ('1','2','3')
     """
     return client.query(query).to_dataframe()
@@ -275,7 +308,6 @@ def load_ecommerce_data(data_inicio, data_fim):
 @st.cache_data(ttl=3600)
 def load_ga4_pages(data_inicio, data_fim):
     client = get_bigquery_client()
-    # Converte string YYYYMMDD para DATE e faz cast de métricas para FLOAT64
     query = f"""
     SELECT
       PARSE_DATE('%Y%m%d', CAST(date AS STRING)) AS data,
@@ -393,8 +425,8 @@ if st.sidebar.button("Sair", use_container_width=True):
 st.sidebar.markdown("---")
 
 col1, col2 = st.sidebar.columns(2)
-data_inicio = col1.date_input("De:", value=datetime(2025, 1, 1))
-data_fim = col2.date_input("Até:", value=datetime(2025, 9, 30))
+data_inicio = col1.date_input("De:", value=datetime(2024, 1, 1))
+data_fim = col2.date_input("Até:", value=datetime.now())
 
 if is_admin:
     try:
@@ -450,7 +482,7 @@ qtd_clientes = int(df['nome_cliente'].nunique()) if 'nome_cliente' in df.columns
 ticket_medio = receita_total / qtd_atendimentos if qtd_atendimentos > 0 else 0
 
 colk1, colk2, colk3, colk4 = st.columns(4)
-colk1.metric("Receita Total", f"R$ {receita_total:,.2f}")
+colk1.metric("Receita Total (Presencial)", f"R$ {receita_total:,.2f}")
 colk2.metric("Quantidade de Atendimentos", f"{qtd_atendimentos:,d}")
 colk3.metric("Clientes Únicos", f"{qtd_clientes:,d}")
 colk4.metric("Ticket Médio por Atendimento", f"R$ {ticket_medio:,.2f}")
@@ -466,7 +498,7 @@ tab_visao, tab_atend, tab_fin, tab_mkt, tab_selfservice, tab_gloss = st.tabs(
 
 # ---------------------- TAB: VISÃO GERAL -------------------------
 with tab_visao:
-    st.subheader("Evolução da Receita")
+    st.subheader("Evolução da Receita (Presencial)")
 
     df_evolucao = (
         df.groupby(data_col)[valor_col]
@@ -487,7 +519,7 @@ with tab_visao:
     st.plotly_chart(fig, use_container_width=True)
 
     st.markdown("---")
-    st.subheader("Receita por Unidade")
+    st.subheader("Receita por Unidade (Presencial)")
 
     df_unidades = (
         df.groupby('unidade')[valor_col]
@@ -618,12 +650,12 @@ with tab_fin:
     st.subheader("Resumo Financeiro da Unidade")
 
     colf1, colf2, colf3 = st.columns(3)
-    colf1.metric("Receita Total (Atendimentos)", f"R$ {receita_total:,.2f}")
+    colf1.metric("Receita Total (Atendimentos Presenciais)", f"R$ {receita_total:,.2f}")
     colf2.metric("Quantidade de Atendimentos", f"{qtd_atendimentos:,d}")
     colf3.metric("Ticket Médio Unidade", f"R$ {ticket_medio:,.2f}")
 
     st.markdown("---")
-    st.subheader("Receita por Unidade")
+    st.subheader("Receita por Unidade (Presencial)")
 
     df_fin_unid = (
         df.groupby('unidade')[valor_col]
@@ -693,99 +725,94 @@ with tab_fin:
             )
 
     st.markdown("---")
-    st.subheader("Itens Ecommerce Mais Vendidos (Financeiro)")
+    st.subheader("Vouchers Usados por Unidade (Ecommerce)")
 
-    with st.spinner("Carregando dados de ecommerce..."):
+    with st.spinner("Carregando vouchers usados..."):
         try:
-            df_ecom_fin = load_ecommerce_data(data_inicio, data_fim)
+            df_ecom_usados = load_ecommerce_usados(data_inicio, data_fim)
         except Exception as e:
-            st.error(f"Erro ao carregar ecommerce para o financeiro: {e}")
-            df_ecom_fin = pd.DataFrame()
+            st.error(f"Erro ao carregar vouchers usados: {e}")
+            df_ecom_usados = pd.DataFrame()
 
-    if df_ecom_fin.empty:
-        st.info("Sem dados de ecommerce para o período selecionado.")
+    if df_ecom_usados.empty:
+        st.info("Sem vouchers usados no período selecionado.")
     else:
-        df_ecom_fin['PRICE_NET'] = pd.to_numeric(df_ecom_fin['PRICE_NET'], errors='coerce')
-        if 'PACKAGE_NAME' in df_ecom_fin.columns:
-            df_ecom_fin['PACKAGE_NAME'] = df_ecom_fin['PACKAGE_NAME'].fillna(df_ecom_fin['NAME'])
-        else:
-            df_ecom_fin['PACKAGE_NAME'] = df_ecom_fin['NAME']
+        df_ecom_usados['PRICE_NET'] = pd.to_numeric(df_ecom_usados['PRICE_NET'], errors='coerce').fillna(0)
+        df_ecom_usados['AFILLIATION_NAME'] = df_ecom_usados['AFILLIATION_NAME'].fillna('Sem Unidade')
 
-        df_ecom_top = (
-            df_ecom_fin
-            .groupby('PACKAGE_NAME')
+        df_ecom_unid = (
+            df_ecom_usados
+            .groupby('AFILLIATION_NAME')
             .agg(
                 qtde_vouchers=('ID', 'count'),
                 receita_liquida=('PRICE_NET', 'sum')
             )
             .reset_index()
             .sort_values('receita_liquida', ascending=False)
-            .head(10)
         )
 
         colf_e1, colf_e2 = st.columns([2, 1])
 
         with colf_e1:
-            fig_ef = px.bar(
-                df_ecom_top,
+            fig_eu = px.bar(
+                df_ecom_unid,
                 x='receita_liquida',
-                y='PACKAGE_NAME',
+                y='AFILLIATION_NAME',
                 orientation='h',
-                labels={'receita_liquida': 'Receita Líquida (R$)', 'PACKAGE_NAME': 'Serviço / Pacote'}
+                labels={'receita_liquida': 'Receita Líquida (R$)', 'AFILLIATION_NAME': 'Unidade'}
             )
-            fig_ef.update_traces(marker_color='#A52A2A')
-            fig_ef.update_layout(
+            fig_eu.update_traces(marker_color='#A52A2A')
+            fig_eu.update_layout(
                 plot_bgcolor='#FFFFFF',
                 paper_bgcolor='#F5F0E6',
                 height=400
             )
-            st.plotly_chart(fig_ef, use_container_width=True)
+            st.plotly_chart(fig_eu, use_container_width=True)
 
         with colf_e2:
             st.dataframe(
-                df_ecom_top.rename(columns={
-                    'PACKAGE_NAME': 'Serviço / Pacote',
-                    'qtde_vouchers': 'Qtd Vouchers',
+                df_ecom_unid.rename(columns={
+                    'AFILLIATION_NAME': 'Unidade',
+                    'qtde_vouchers': 'Qtd Vouchers Usados',
                     'receita_liquida': 'Receita Líquida'
                 }).style.format({
-                    'Qtd Vouchers': '{:,.0f}',
+                    'Qtd Vouchers Usados': '{:,.0f}',
                     'Receita Líquida': 'R$ {:,.2f}'
                 }),
                 use_container_width=True,
                 height=400
             )
 
+        st.info("⚠️ **Atenção:** Esta receita refere-se apenas aos vouchers que **já foram usados** nas unidades. Vouchers vendidos mas ainda não utilizados não aparecem aqui.")
+
 # ---------------------- TAB: MARKETING & ECOMMERCE -------------------------
 with tab_mkt:
-    # BLOCO 1 – ECOMMERCE
-    st.subheader("Ecommerce – Vendas de Vouchers")
+    # BLOCO 1 – ECOMMERCE (VENDAS GLOBAIS)
+    st.subheader("Ecommerce – Vendas de Vouchers (Visão Global)")
 
     with st.spinner("Carregando dados de ecommerce..."):
         try:
-            df_ecom = load_ecommerce_data(data_inicio, data_fim)
+            df_ecom_vendas = load_ecommerce_vendas(data_inicio, data_fim)
         except Exception as e:
             st.error(f"Erro ao carregar dados de ecommerce: {e}")
-            df_ecom = pd.DataFrame()
+            df_ecom_vendas = pd.DataFrame()
 
-    if df_ecom.empty:
+    if df_ecom_vendas.empty:
         st.warning("Sem dados de ecommerce para o período selecionado.")
     else:
-        df_ecom['PRICE_GROSS'] = pd.to_numeric(df_ecom['PRICE_GROSS'], errors='coerce')
-        df_ecom['PRICE_NET'] = pd.to_numeric(df_ecom['PRICE_NET'], errors='coerce')
+        df_ecom_vendas['PRICE_GROSS'] = pd.to_numeric(df_ecom_vendas['PRICE_GROSS'], errors='coerce').fillna(0)
+        df_ecom_vendas['PRICE_NET'] = pd.to_numeric(df_ecom_vendas['PRICE_NET'], errors='coerce').fillna(0)
 
-        if 'PACKAGE_NAME' in df_ecom.columns:
-            df_ecom['PACKAGE_NAME'] = df_ecom['PACKAGE_NAME'].fillna(df_ecom['NAME'])
+        if 'PACKAGE_NAME' in df_ecom_vendas.columns:
+            df_ecom_vendas['PACKAGE_NAME'] = df_ecom_vendas['PACKAGE_NAME'].fillna(df_ecom_vendas['NAME'])
         else:
-            df_ecom['PACKAGE_NAME'] = df_ecom['NAME']
-
-        if 'AFILLIATION_NAME' not in df_ecom.columns:
-            df_ecom['AFILLIATION_NAME'] = "Sem Unidade"
+            df_ecom_vendas['PACKAGE_NAME'] = df_ecom_vendas['NAME']
 
         colm1, colm2, colm3, colm4 = st.columns(4)
 
-        total_pedidos = int(df_ecom['ORDER_ID'].nunique())
-        total_vouchers = int(len(df_ecom))
-        receita_liquida_e = df_ecom['PRICE_NET'].fillna(0).sum()
+        total_pedidos = int(df_ecom_vendas['ORDER_ID'].nunique())
+        total_vouchers = int(len(df_ecom_vendas))
+        receita_liquida_e = df_ecom_vendas['PRICE_NET'].sum()
         ticket_medio_e = receita_liquida_e / total_pedidos if total_pedidos > 0 else 0
 
         colm1.metric("Pedidos Ecommerce", f"{total_pedidos:,.0f}")
@@ -796,7 +823,7 @@ with tab_mkt:
         st.markdown("### Top 10 Serviços / Pacotes Vendidos (Ecommerce)")
 
         df_serv = (
-            df_ecom
+            df_ecom_vendas
             .groupby('PACKAGE_NAME')
             .agg(
                 qtde_vouchers=('ID', 'count'),
@@ -839,6 +866,8 @@ with tab_mkt:
                 use_container_width=True,
                 height=450
             )
+
+        st.info("💡 **Nota:** Estes números representam vouchers **vendidos** (pela data de criação), independente de terem sido usados ou não.")
 
     st.markdown("---")
 
@@ -1284,20 +1313,47 @@ with tab_gloss:
     st.markdown("""
     ### 📊 Principais Métricas
 
-    **Receita Total** – Soma de todos os valores líquidos de atendimentos no período.  
+    **Receita Total (Presencial)** – Soma de todos os valores líquidos de atendimentos presenciais no período.  
     **Quantidade de Atendimentos** – Número de atendimentos únicos (`id_venda`).  
     **Clientes Únicos** – Número de clientes distintos atendidos.  
     **Ticket Médio por Atendimento** – Receita Total ÷ Quantidade de Atendimentos.  
 
     **Serviços Presenciais Mais Vendidos** – Ranking de serviços presenciais por receita e quantidade.  
-    **Itens Ecommerce Mais Vendidos** – Ranking de serviços/pacotes vendidos no ecommerce (vouchers).  
+    
+    ---
+    
+    ### 🛒 Ecommerce
+    
+    **Pedidos Ecommerce** – Número de pedidos únicos realizados no site (pela data de criação).  
+    **Vouchers Vendidos** – Total de vouchers vendidos (independente de terem sido usados).  
+    **Receita Líquida Ecommerce** – Soma do valor líquido de todos os vouchers vendidos.  
+    **Vouchers Usados por Unidade** – Receita e quantidade de vouchers que **já foram utilizados** em cada unidade (pela data de uso).  
+    
+    ⚠️ **Importante:** A receita de ecommerce global representa vouchers **vendidos**. A receita por unidade representa apenas vouchers **já usados** nas unidades.
+    
+    ---
 
+    ### 🌐 Site (GA4)
+    
     **Pageviews (GA4)** – Visualizações de página no site / páginas-chave.  
     **Sessões (GA4)** – Sessões por canal de aquisição (Direct, Organic, Paid, Social etc.).  
     **Eventos (GA4)** – Eventos como `form_submit`, cliques, WhatsApp etc.  
 
+    ---
+    
+    ### 📱 Redes Sociais
+    
     **Seguidores Instagram** – Evolução de `qtd_seguidores` ao longo do tempo.  
-    **Meta Ads** – Impressões, cliques, investimento, vendas e ROI das campanhas.
+    **Engajamento** – Soma de curtidas + comentários dos posts.  
+    
+    ---
+    
+    ### 💰 Mídia Paga
+    
+    **Meta Ads** – Impressões, cliques, investimento, vendas e ROI das campanhas do Facebook/Instagram.  
+    **CTR (Click-Through Rate)** – Taxa de cliques = (Cliques ÷ Impressões) × 100.  
+    **CPC (Custo Por Clique)** – Investimento ÷ Cliques.  
+    **ROI (Return on Investment)** – ((Receita - Investimento) ÷ Investimento) × 100.
     """)
 
-st.caption("Buddha Spa Dashboard – Portal de Franqueados")
+st.caption("Buddha Spa Dashboard – Portal de Franqueados | Dados desde 2024")
