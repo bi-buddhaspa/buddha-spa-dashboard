@@ -3,6 +3,7 @@ import pandas as pd
 import plotly.express as px
 from google.cloud import bigquery
 from datetime import datetime
+import streamlit_authenticator as stauth
 
 # -----------------------------------------------------------------------------
 # CONFIGURAÇÃO DA PÁGINA
@@ -12,6 +13,59 @@ st.set_page_config(
     page_icon="🧘",
     layout="wide"
 )
+
+# -----------------------------------------------------------------------------
+# SISTEMA DE AUTENTICAÇÃO
+# -----------------------------------------------------------------------------
+config = {
+    'credentials': {
+        'usernames': {
+            'joao.silva': {
+                'email': 'joao.silva@buddhaspa.com.br',
+                'name': 'João Silva',
+                'password': stauth.Hasher(['senha123']).generate()[0],
+                'unidade': 'buddha spa - higienópolis'
+            },
+            'leandro.santos': {
+                'email': 'leandro.santos@buddhaspa.com.br',
+                'name': 'Leandro Santos',
+                'password': stauth.Hasher(['admin123']).generate()[0],
+                'unidade': 'TODAS'
+            }
+        }
+    },
+    'cookie': {
+        'expiry_days': 30,
+        'key': 'buddha_spa_auth',
+        'name': 'buddha_spa_cookie'
+    },
+    'preauthorized': {
+        'emails': []
+    }
+}
+
+authenticator = stauth.Authenticate(
+    config['credentials'],
+    config['cookie']['name'],
+    config['cookie']['key'],
+    config['cookie']['expiry_days'],
+    config['preauthorized']
+)
+
+name, authentication_status, username = authenticator.login('Portal de Franqueados - Buddha Spa', 'main')
+
+if authentication_status == False:
+    st.error('Usuário ou senha incorretos')
+    st.stop()
+elif authentication_status == None:
+    st.warning('Por favor, insira seu usuário e senha')
+    st.stop()
+
+st.sidebar.success(f'Bem-vindo, {name}!')
+authenticator.logout('Sair', 'sidebar')
+
+unidade_usuario = config['credentials']['usernames'][username]['unidade']
+is_admin = (unidade_usuario == 'TODAS')
 
 # -----------------------------------------------------------------------------
 # ESTILO
@@ -121,35 +175,62 @@ def get_bigquery_client():
         return bigquery.Client(project='buddha-bigdata')
 
 # -----------------------------------------------------------------------------
-# FUNÇÕES DE DADOS (USANDO itens_atendimentos_analytics)
+# FUNÇÕES DE DADOS
 # -----------------------------------------------------------------------------
 @st.cache_data(ttl=3600)
-def load_atendimentos(data_inicio, data_fim):
-    """
-    Carrega os itens de atendimentos detalhados (apenas tipo_item = 'Serviço').
-    Usa os nomes reais das colunas que você mostrou.
-    """
+def load_atendimentos(data_inicio, data_fim, unidade_filtro=None):
     client = get_bigquery_client()
+    
+    filtro_unidade = ""
+    if unidade_filtro and unidade_filtro != 'TODAS':
+        filtro_unidade = f"AND LOWER(unidade) = LOWER('{unidade_filtro}')"
+    
     query = f"""
     SELECT
+        id_venda,
         unidade,
         DATE(data_atendimento) AS data_atendimento,
         nome_cliente,
         profissional,
-        tipo_item,
-        categoria_servico,
-        descricao_item,
-        servico_realizado,
-        nome_servico_simplificado,
         forma_pagamento,
-        valor_bruto,
-        valor_desconto,
-        valor_liquido,
-        valor_recebido
+        nome_servico_simplificado,
+        SUM(valor_liquido) AS valor_liquido,
+        SUM(valor_bruto) AS valor_bruto,
+        COUNT(*) AS qtd_itens
     FROM `buddha-bigdata.analytics.itens_atendimentos_analytics`
     WHERE 
         data_atendimento BETWEEN '{data_inicio}' AND '{data_fim}'
         AND tipo_item = 'Serviço'
+        {filtro_unidade}
+    GROUP BY id_venda, unidade, data_atendimento, nome_cliente, profissional, forma_pagamento, nome_servico_simplificado
+    """
+    return client.query(query).to_dataframe()
+
+@st.cache_data(ttl=3600)
+def load_atendimentos_detalhados(data_inicio, data_fim, unidade_filtro=None):
+    """Para análises que precisam de item por item (ex: serviços mais vendidos)"""
+    client = get_bigquery_client()
+    
+    filtro_unidade = ""
+    if unidade_filtro and unidade_filtro != 'TODAS':
+        filtro_unidade = f"AND LOWER(unidade) = LOWER('{unidade_filtro}')"
+    
+    query = f"""
+    SELECT
+        id_venda,
+        unidade,
+        DATE(data_atendimento) AS data_atendimento,
+        nome_cliente,
+        profissional,
+        forma_pagamento,
+        nome_servico_simplificado,
+        valor_liquido,
+        valor_bruto
+    FROM `buddha-bigdata.analytics.itens_atendimentos_analytics`
+    WHERE 
+        data_atendimento BETWEEN '{data_inicio}' AND '{data_fim}'
+        AND tipo_item = 'Serviço'
+        {filtro_unidade}
     """
     return client.query(query).to_dataframe()
 
@@ -186,89 +267,7 @@ def load_ecommerce_data(data_inicio, data_fim):
         (SELECT p.NAME FROM `buddha-bigdata.raw.packages_raw` p WHERE p.ID = s.PACKAGE_ID) AS PACKAGE_NAME, 
         (SELECT u.post_title FROM `buddha-bigdata.raw.wp_posts` u 
          WHERE u.post_type = 'unidade' 
-           AND u.ID = CAST(CAST(s.AFILLIATION_ID AS FLOAT64) AS INT64)) AS AFILLIATION_NAME,
-        (SELECT 
-            CONCAT(
-                MAX(CASE WHEN pm.meta_key = '_billing_first_name' THEN pm.meta_value END),
-                ' ',
-                MAX(CASE WHEN pm.meta_key = '_billing_last_name' THEN pm.meta_value END)
-            ) 
-            FROM `buddha-bigdata.raw.wp_posts` o
-            LEFT JOIN `buddha-bigdata.raw.wp_postmeta` pm ON o.ID = pm.post_id
-            WHERE o.ID = CAST(CAST(s.ORDER_ID AS FLOAT64) AS INT64)
-        ) AS Customer_FullName,
-        (SELECT 
-            MAX(CASE WHEN pm.meta_key = '_billing_email' THEN pm.meta_value END) 
-            FROM `buddha-bigdata.raw.wp_posts` o
-            LEFT JOIN `buddha-bigdata.raw.wp_postmeta` pm ON o.ID = pm.post_id
-            WHERE o.ID = CAST(CAST(s.ORDER_ID AS FLOAT64) AS INT64)
-        ) AS Customer_Email,
-        (SELECT 
-            MAX(CASE WHEN pm.meta_key = '_billing_phone' THEN pm.meta_value END) 
-            FROM `buddha-bigdata.raw.wp_posts` o
-            LEFT JOIN `buddha-bigdata.raw.wp_postmeta` pm ON o.ID = pm.post_id
-            WHERE o.ID = CAST(CAST(s.ORDER_ID AS FLOAT64) AS INT64)
-        ) AS Customer_Phone,
-        (SELECT 
-            MAX(CASE WHEN pm.meta_key = '_billing_cellphone' THEN pm.meta_value END) 
-            FROM `buddha-bigdata.raw.wp_posts` o
-            LEFT JOIN `buddha-bigdata.raw.wp_postmeta` pm ON o.ID = pm.post_id
-            WHERE o.ID = CAST(CAST(s.ORDER_ID AS FLOAT64) AS INT64)
-        ) AS Customer_Cellphone,
-        (SELECT 
-            MAX(CASE WHEN usermeta.meta_key = 'billing_cpf' THEN usermeta.meta_value END) 
-            FROM `buddha-bigdata.raw.wp_postmeta` pm
-            LEFT JOIN `buddha-bigdata.raw.usermeta_raw` usermeta 
-                ON CAST(CAST(pm.meta_value AS FLOAT64) AS INT64) = usermeta.user_id
-            WHERE pm.meta_key = '_customer_user' 
-              AND pm.post_id = CAST(CAST(s.ORDER_ID AS FLOAT64) AS INT64)
-        ) AS Customer_CPF,
-        (SELECT 
-            MAX(CASE WHEN usermeta.meta_key = 'billing_cnpj' THEN usermeta.meta_value END) 
-            FROM `buddha-bigdata.raw.wp_postmeta` pm
-            LEFT JOIN `buddha-bigdata.raw.usermeta_raw` usermeta 
-                ON CAST(CAST(pm.meta_value AS FLOAT64) AS INT64) = usermeta.user_id
-            WHERE pm.meta_key = '_customer_user' 
-              AND pm.post_id = CAST(CAST(s.ORDER_ID AS FLOAT64) AS INT64)
-        ) AS Customer_CNPJ,
-        (SELECT 
-            MAX(CASE WHEN pm.meta_key = '_billing_address_1' THEN pm.meta_value END) 
-            FROM `buddha-bigdata.raw.wp_posts` o
-            LEFT JOIN `buddha-bigdata.raw.wp_postmeta` pm ON o.ID = pm.post_id
-            WHERE o.ID = CAST(CAST(s.ORDER_ID AS FLOAT64) AS INT64)
-        ) AS Customer_Address_1,
-        (SELECT 
-            MAX(CASE WHEN pm.meta_key = '_billing_number' THEN pm.meta_value END) 
-            FROM `buddha-bigdata.raw.wp_posts` o
-            LEFT JOIN `buddha-bigdata.raw.wp_postmeta` pm ON o.ID = pm.post_id
-            WHERE o.ID = CAST(CAST(s.ORDER_ID AS FLOAT64) AS INT64)
-        ) AS Customer_Number,
-        (SELECT 
-            MAX(CASE WHEN pm.meta_key = '_billing_postcode' THEN pm.meta_value END) 
-            FROM `buddha-bigdata.raw.wp_posts` o
-            LEFT JOIN `buddha-bigdata.raw.wp_postmeta` pm ON o.ID = pm.post_id
-            WHERE o.ID = CAST(CAST(s.ORDER_ID AS FLOAT64) AS INT64)
-        ) AS Customer_Postcode,
-        (SELECT 
-            MAX(CASE WHEN pm.meta_key = '_billing_city' THEN pm.meta_value END) 
-            FROM `buddha-bigdata.raw.wp_posts` o
-            LEFT JOIN `buddha-bigdata.raw.wp_postmeta` pm ON o.ID = pm.post_id
-            WHERE o.ID = CAST(CAST(s.ORDER_ID AS FLOAT64) AS INT64)
-        ) AS Customer_City,
-        (SELECT 
-            MAX(CASE WHEN pm.meta_key = '_billing_state' THEN pm.meta_value END) 
-            FROM `buddha-bigdata.raw.wp_posts` o
-            LEFT JOIN `buddha-bigdata.raw.wp_postmeta` pm ON o.ID = pm.post_id
-            WHERE o.ID = CAST(CAST(s.ORDER_ID AS FLOAT64) AS INT64)
-        ) AS Customer_State,
-        (SELECT 
-            MAX(CASE WHEN usermeta.meta_key = 'birthdate' THEN usermeta.meta_value END) 
-            FROM `buddha-bigdata.raw.wp_postmeta` pm
-            LEFT JOIN `buddha-bigdata.raw.usermeta_raw` usermeta 
-                ON CAST(CAST(pm.meta_value AS FLOAT64) AS INT64) = usermeta.user_id
-            WHERE pm.meta_key = '_customer_user' 
-              AND pm.post_id = CAST(CAST(s.ORDER_ID AS FLOAT64) AS INT64)
-        ) AS Customer_Birthdate
+           AND u.ID = CAST(CAST(s.AFILLIATION_ID AS FLOAT64) AS INT64)) AS AFILLIATION_NAME
     FROM `buddha-bigdata.raw.ecommerce_raw` s
     WHERE 
         s.CREATED_DATE >= TIMESTAMP('{data_inicio} 00:00:00', 'America/Sao_Paulo')
@@ -283,28 +282,40 @@ def load_ecommerce_data(data_inicio, data_fim):
 st.sidebar.title("Filtros")
 
 col1, col2 = st.sidebar.columns(2)
-data_inicio = col1.date_input("De:", value=datetime(2025, 9, 1))
+data_inicio = col1.date_input("De:", value=datetime(2025, 1, 1))
 data_fim = col2.date_input("Até:", value=datetime(2025, 9, 30))
 
-try:
-    unidades_disponiveis = load_unidades()
-    unidades_selecionadas = st.sidebar.multiselect(
-        "Unidades:",
-        options=unidades_disponiveis,
-        default=None
-    )
-except Exception as e:
-    st.error(f"Erro ao carregar unidades: {e}")
-    st.stop()
+if is_admin:
+    try:
+        unidades_disponiveis = load_unidades()
+        unidades_selecionadas = st.sidebar.multiselect(
+            "Unidades:",
+            options=unidades_disponiveis,
+            default=None
+        )
+    except Exception as e:
+        st.error(f"Erro ao carregar unidades: {e}")
+        st.stop()
+else:
+    unidades_selecionadas = [unidade_usuario.lower()]
+    st.sidebar.info(f"Você está visualizando apenas: **{unidade_usuario}**")
 
 # -----------------------------------------------------------------------------
-# CARREGAR DADOS DE ATENDIMENTOS
+# CARREGAR DADOS
 # -----------------------------------------------------------------------------
 with st.spinner("Carregando dados de atendimentos..."):
     try:
-        df = load_atendimentos(data_inicio, data_fim)
-        if unidades_selecionadas:
+        if is_admin and not unidades_selecionadas:
+            df = load_atendimentos(data_inicio, data_fim, unidade_filtro=None)
+            df_detalhado = load_atendimentos_detalhados(data_inicio, data_fim, unidade_filtro=None)
+        elif is_admin and unidades_selecionadas:
+            df = load_atendimentos(data_inicio, data_fim, unidade_filtro=None)
             df = df[df['unidade'].str.lower().isin(unidades_selecionadas)]
+            df_detalhado = load_atendimentos_detalhados(data_inicio, data_fim, unidade_filtro=None)
+            df_detalhado = df_detalhado[df_detalhado['unidade'].str.lower().isin(unidades_selecionadas)]
+        else:
+            df = load_atendimentos(data_inicio, data_fim, unidade_filtro=unidade_usuario)
+            df_detalhado = load_atendimentos_detalhados(data_inicio, data_fim, unidade_filtro=unidade_usuario)
     except Exception as e:
         st.error(f"Erro ao carregar dados: {e}")
         st.stop()
@@ -313,15 +324,8 @@ if df.empty:
     st.warning("Sem dados de atendimentos para o período/unidades selecionados.")
     st.stop()
 
-# Normalizar nome das colunas principais
 data_col = 'data_atendimento'
-valor_col = 'valor_liquido' if 'valor_liquido' in df.columns else (
-    'valor_bruto' if 'valor_bruto' in df.columns else None
-)
-
-if valor_col is None:
-    st.error("Não encontrei colunas de valor (valor_liquido ou valor_bruto) na tabela de atendimentos.")
-    st.stop()
+valor_col = 'valor_liquido'
 
 # -----------------------------------------------------------------------------
 # HEADER
@@ -330,17 +334,17 @@ st.title("Buddha Spa - Dashboard de Unidades")
 st.caption(f"Período: {data_inicio.strftime('%d/%m/%Y')} a {data_fim.strftime('%d/%m/%Y')}")
 
 # -----------------------------------------------------------------------------
-# KPIs PRINCIPAIS (VISÃO GERAL)
+# KPIs PRINCIPAIS
 # -----------------------------------------------------------------------------
 receita_total = df[valor_col].sum()
-qtd_atendimentos = int(len(df))
+qtd_atendimentos = int(df['id_venda'].nunique())
 qtd_clientes = int(df['nome_cliente'].nunique()) if 'nome_cliente' in df.columns else 0
 ticket_medio = receita_total / qtd_atendimentos if qtd_atendimentos > 0 else 0
 
 col1, col2, col3, col4 = st.columns(4)
 col1.metric("Receita Total", f"R$ {receita_total:,.2f}")
-col2.metric("Quantidade de Atendimentos", f"{qtd_atendimentos:d}")
-col3.metric("Clientes Únicos", f"{qtd_clientes:d}")
+col2.metric("Quantidade de Atendimentos", f"{qtd_atendimentos:,d}")
+col3.metric("Clientes Únicos", f"{qtd_clientes:,d}")
 col4.metric("Ticket Médio por Atendimento", f"R$ {ticket_medio:,.2f}")
 
 st.divider()
@@ -408,26 +412,13 @@ with tab_atend:
             df.groupby(['unidade', 'profissional'])
             .agg(
                 receita=(valor_col, 'sum'),
-                qtd_atendimentos=('nome_cliente', 'count' if 'nome_cliente' in df.columns else 'size'),
+                qtd_atendimentos=('id_venda', 'nunique'),
                 clientes_unicos=('nome_cliente', 'nunique') if 'nome_cliente' in df.columns else ('unidade', 'size')
             )
             .reset_index()
         )
         df_terap['ticket_medio'] = df_terap['receita'] / df_terap['qtd_atendimentos']
-
         df_terap = df_terap.sort_values('receita', ascending=False)
-
-        totais = {
-            'unidade': 'TOTAL',
-            'profissional': 'TOTAL',
-            'receita': df_terap['receita'].sum(),
-            'qtd_atendimentos': df_terap['qtd_atendimentos'].sum(),
-            'clientes_unicos': df_terap['clientes_unicos'].sum() if 'clientes_unicos' in df_terap.columns else None,
-        }
-        totais['ticket_medio'] = (
-            totais['receita'] / totais['qtd_atendimentos'] if totais['qtd_atendimentos'] > 0 else 0
-        )
-        df_terap_total = pd.concat([df_terap, pd.DataFrame([totais])], ignore_index=True)
 
         col_a, col_b = st.columns([2, 1])
 
@@ -454,9 +445,9 @@ with tab_atend:
             st.plotly_chart(fig_t, use_container_width=True)
 
         with col_b:
-            st.markdown("### Tabela de Performance por Terapeuta (com TOTAL)")
+            st.markdown("### Tabela de Performance")
             st.dataframe(
-                df_terap_total.style.format({
+                df_terap.style.format({
                     'receita': 'R$ {:,.2f}',
                     'qtd_atendimentos': '{:,.0f}',
                     'clientes_unicos': '{:,.0f}',
@@ -465,19 +456,16 @@ with tab_atend:
                 use_container_width=True,
                 height=500
             )
-    else:
-        st.info("A coluna 'profissional' não foi encontrada em itens_atendimentos_analytics.")
 
     st.markdown("---")
-    st.subheader("Principais Serviços (com % do Total)")
+    st.subheader("Principais Serviços")
 
-    # Usando nome_servico_simplificado como serviço
-    if 'nome_servico_simplificado' in df.columns:
+    if 'nome_servico_simplificado' in df_detalhado.columns:
         df_servicos = (
-            df.groupby('nome_servico_simplificado')[valor_col]
-            .sum()
+            df_detalhado.groupby('nome_servico_simplificado')[valor_col]
+            .agg(['sum', 'count'])
             .reset_index()
-            .rename(columns={valor_col: 'receita'})
+            .rename(columns={'sum': 'receita', 'count': 'qtd'})
         )
         df_servicos['perc_receita'] = df_servicos['receita'] / df_servicos['receita'].sum()
         df_servicos = df_servicos.sort_values('receita', ascending=False).head(15)
@@ -506,16 +494,16 @@ with tab_atend:
                 df_servicos.rename(columns={
                     'nome_servico_simplificado': 'Serviço',
                     'receita': 'Receita',
+                    'qtd': 'Quantidade',
                     'perc_receita': '% Receita'
                 }).style.format({
                     'Receita': 'R$ {:,.2f}',
+                    'Quantidade': '{:,.0f}',
                     '% Receita': '{:.1%}'
                 }),
                 use_container_width=True,
                 height=500
             )
-    else:
-        st.info("A coluna 'nome_servico_simplificado' não foi encontrada em itens_atendimentos_analytics.")
 
 # ---------------------- TAB: FINANCEIRO -------------------------
 with tab_fin:
@@ -523,11 +511,11 @@ with tab_fin:
 
     colf1, colf2, colf3 = st.columns(3)
     colf1.metric("Receita Total (Atendimentos)", f"R$ {receita_total:,.2f}")
-    colf2.metric("Quantidade de Atendimentos", f"{qtd_atendimentos:d}")
+    colf2.metric("Quantidade de Atendimentos", f"{qtd_atendimentos:,d}")
     colf3.metric("Ticket Médio Unidade", f"R$ {ticket_medio:,.2f}")
 
     st.markdown("---")
-    st.subheader("Receita por Unidade (Atendimento Presencial)")
+    st.subheader("Receita por Unidade")
 
     df_fin_unid = (
         df.groupby('unidade')[valor_col]
@@ -552,19 +540,9 @@ with tab_fin:
     )
     st.plotly_chart(fig_fu, use_container_width=True)
 
-    st.markdown("---")
-    st.caption(
-        "Obs.: Comparação com cluster, Receita Ajustada por Sala e Taxa de Ocupação "
-        "dependem de tabelas adicionais (estrutura física, nº de salas e horários Belle)."
-    )
-
 # ---------------------- TAB: MARKETING & ECOMMERCE -------------------------
 with tab_mkt:
     st.subheader("Ecommerce – Vendas de Vouchers")
-    st.caption(
-        "Aqui trazemos os indicadores de ecommerce (rede + franquias) com base em `raw.ecommerce_raw`.\n"
-        "Sessões página, cliques WhatsApp, Ads e Meta Ads entram depois com GA4/Ads plugados."
-    )
 
     with st.spinner("Carregando dados de ecommerce..."):
         df_ecom = load_ecommerce_data(data_inicio, data_fim)
@@ -572,7 +550,6 @@ with tab_mkt:
     if df_ecom.empty:
         st.warning("Sem dados de ecommerce para o período selecionado.")
     else:
-        df_ecom['COUPONS'] = pd.to_numeric(df_ecom['COUPONS'], errors='coerce')
         df_ecom['PRICE_GROSS'] = pd.to_numeric(df_ecom['PRICE_GROSS'], errors='coerce')
         df_ecom['PRICE_NET'] = pd.to_numeric(df_ecom['PRICE_NET'], errors='coerce')
 
@@ -586,7 +563,7 @@ with tab_mkt:
 
         colm1, colm2, colm3, colm4 = st.columns(4)
 
-        total_pedidos = int(df_ecom['ID'].nunique())
+        total_pedidos = int(df_ecom['ORDER_ID'].nunique())
         total_vouchers = int(len(df_ecom))
         receita_bruta_e = df_ecom['PRICE_GROSS'].fillna(0).sum()
         receita_liquida_e = df_ecom['PRICE_NET'].fillna(0).sum()
@@ -598,7 +575,7 @@ with tab_mkt:
         colm4.metric("Ticket Médio Ecommerce", f"R$ {ticket_medio_e:,.2f}")
 
         st.markdown("---")
-        st.markdown("### Top 10 Serviços / Pacotes Vendidos (Ecommerce)")
+        st.markdown("### Top 10 Serviços / Pacotes Vendidos")
 
         df_serv = (
             df_ecom
@@ -645,70 +622,29 @@ with tab_mkt:
                 height=450
             )
 
-        st.markdown("---")
-        st.markdown("### Receita Líquida por Unidade (Ecommerce)")
-
-        df_af = (
-            df_ecom
-            .groupby('AFILLIATION_NAME')['PRICE_NET']
-            .sum()
-            .reset_index()
-            .sort_values('PRICE_NET', ascending=False)
-            .head(15)
-        )
-
-        fig_af = px.bar(
-            df_af,
-            x='PRICE_NET',
-            y='AFILLIATION_NAME',
-            orientation='h',
-            labels={'PRICE_NET': 'Receita Líquida (R$)', 'AFILLIATION_NAME': 'Unidade'},
-        )
-        fig_af.update_traces(marker_color='#A52A2A')
-        fig_af.update_layout(
-            plot_bgcolor='#FFFFFF',
-            paper_bgcolor='#F5F0E6',
-            height=450
-        )
-        st.plotly_chart(fig_af, use_container_width=True)
-
 # ---------------------- TAB: SELF-SERVICE -------------------------
 with tab_selfservice:
-    st.subheader("Monte Sua Própria Análise (Self-Service)")
-    st.caption("Escolha as dimensões e métricas – estilo QlikView, usando a base de atendimentos.")
+    st.subheader("Monte Sua Própria Análise")
 
     c1, c2 = st.columns(2)
 
     with c1:
-        st.markdown("### Agrupar Por (Linhas)")
+        st.markdown("### Agrupar Por")
         dimensoes = st.multiselect(
-            "Selecione uma ou mais dimensões:",
+            "Selecione dimensões:",
             ["Data", "Unidade", "Forma de Pagamento", "Serviço", "Terapeuta", "Cliente"],
-            default=["Unidade"],
-            help="As linhas da sua tabela"
+            default=["Unidade"]
         )
 
     with c2:
-        st.markdown("### Métricas (Colunas)")
+        st.markdown("### Métricas")
         metricas = st.multiselect(
-            "Selecione as métricas que deseja ver:",
-            [
-                "Receita Total",
-                "Quantidade de Atendimentos",
-                "Ticket Médio",
-                "Clientes Únicos",
-                "Maior Valor",
-                "Menor Valor"
-            ],
-            default=["Receita Total", "Quantidade de Atendimentos", "Ticket Médio"],
-            help="As colunas com os valores"
+            "Selecione métricas:",
+            ["Receita Total", "Quantidade de Atendimentos", "Ticket Médio", "Clientes Únicos"],
+            default=["Receita Total", "Quantidade de Atendimentos"]
         )
 
-    if not dimensoes:
-        st.warning("Selecione pelo menos uma dimensão para agrupar.")
-    elif not metricas:
-        st.warning("Selecione pelo menos uma métrica para exibir.")
-    else:
+    if dimensoes and metricas:
         dim_map = {
             "Data": data_col,
             "Unidade": "unidade",
@@ -720,104 +656,26 @@ with tab_selfservice:
 
         colunas_agrupamento = [dim_map[d] for d in dimensoes if dim_map[d] in df.columns]
 
-        if not colunas_agrupamento:
-            st.error("Nenhuma das dimensões selecionadas existe na base de atendimentos. Ajuste os nomes no SELECT se necessário.")
-        else:
+        if colunas_agrupamento:
             agg_dict = {}
             if "Receita Total" in metricas:
                 agg_dict['receita_total'] = (valor_col, 'sum')
             if "Quantidade de Atendimentos" in metricas:
-                agg_dict['qtd_atendimentos'] = (valor_col, 'count')
+                agg_dict['qtd_atendimentos'] = ('id_venda', 'nunique')
             if "Clientes Únicos" in metricas and 'nome_cliente' in df.columns:
                 agg_dict['clientes_unicos'] = ('nome_cliente', 'nunique')
-            if "Maior Valor" in metricas:
-                agg_dict['maior_valor'] = (valor_col, 'max')
-            if "Menor Valor" in metricas:
-                agg_dict['menor_valor'] = (valor_col, 'min')
 
             df_custom = df.groupby(colunas_agrupamento).agg(**agg_dict).reset_index()
 
-            if "Ticket Médio" in metricas:
-                if 'receita_total' in df_custom.columns and 'qtd_atendimentos' in df_custom.columns:
-                    df_custom['ticket_medio'] = df_custom['receita_total'] / df_custom['qtd_atendimentos']
-
-            rename_map = {
-                'receita_total': 'Receita Total',
-                'qtd_atendimentos': 'Qtd Atendimentos',
-                'clientes_unicos': 'Clientes Únicos',
-                'ticket_medio': 'Ticket Médio',
-                'maior_valor': 'Maior Valor',
-                'menor_valor': 'Menor Valor',
-                data_col: 'Data',
-                'unidade': 'Unidade',
-                'forma_pagamento': 'Forma Pagamento',
-                'nome_servico_simplificado': 'Serviço',
-                'profissional': 'Terapeuta',
-                'nome_cliente': 'Cliente'
-            }
-            df_custom = df_custom.rename(columns=rename_map)
-
-            colunas_numericas = [
-                c for c in df_custom.columns
-                if c not in ['Data', 'Unidade', 'Forma Pagamento', 'Serviço', 'Terapeuta', 'Cliente']
-                and pd.api.types.is_numeric_dtype(df_custom[c])
-            ]
-            if colunas_numericas:
-                df_custom = df_custom.sort_values(colunas_numericas[0], ascending=False)
-
-            c1b, c2b = st.columns([2, 1])
-            with c1b:
-                limite = st.slider("Limitar resultados:", 5, 100, 20, 5)
-            with c2b:
-                mostrar_totais = st.checkbox("Mostrar totais", value=True)
-
-            df_display = df_custom.head(limite).copy()
-
-            if mostrar_totais and len(df_display) > 0:
-                totais = {}
-                for col in df_display.columns:
-                    if col in ['Data', 'Unidade', 'Forma Pagamento', 'Serviço', 'Terapeuta', 'Cliente']:
-                        totais[col] = 'TOTAL'
-                    elif pd.api.types.is_numeric_dtype(df_display[col]):
-                        if col == 'Ticket Médio':
-                            if 'Receita Total' in df_display.columns and 'Qtd Atendimentos' in df_display.columns:
-                                totais[col] = (
-                                    df_display['Receita Total'].sum() /
-                                    df_display['Qtd Atendimentos'].sum()
-                                )
-                            else:
-                                totais[col] = df_display[col].mean()
-                        elif col in ['Clientes Únicos', 'Qtd Atendimentos']:
-                            totais[col] = df_display[col].sum()
-                        elif col in ['Maior Valor', 'Menor Valor']:
-                            totais[col] = (
-                                df_display[col].max() if 'Maior' in col else df_display[col].min()
-                            )
-                        else:
-                            totais[col] = df_display[col].sum()
-
-                df_display = pd.concat([df_display, pd.DataFrame([totais])], ignore_index=True)
-
-            format_dict = {}
-            for col in df_display.columns:
-                if pd.api.types.is_numeric_dtype(df_display[col]):
-                    if col in ['Receita Total', 'Ticket Médio', 'Maior Valor', 'Menor Valor']:
-                        format_dict[col] = 'R$ {:,.2f}'
-                    else:
-                        format_dict[col] = '{:,.0f}'
+            if "Ticket Médio" in metricas and 'receita_total' in df_custom.columns and 'qtd_atendimentos' in df_custom.columns:
+                df_custom['ticket_medio'] = df_custom['receita_total'] / df_custom['qtd_atendimentos']
 
             st.markdown("---")
-            st.markdown(f"### Resultado ({len(df_custom)} linhas no total)")
-
-            st.dataframe(
-                df_display.style.format(format_dict),
-                use_container_width=True,
-                height=400
-            )
+            st.dataframe(df_custom, use_container_width=True, height=400)
 
             csv = df_custom.to_csv(index=False).encode('utf-8')
             st.download_button(
-                "Download CSV Completo (Self-Service)",
+                "Download CSV",
                 csv,
                 f"buddha_selfservice_{data_inicio}_{data_fim}.csv",
                 "text/csv"
@@ -828,45 +686,17 @@ with tab_gloss:
     st.subheader("Ajuda / Glossário de Métricas")
 
     st.markdown("""
-    **Receita Total (Atendimentos)**  
-    Soma de todos os valores (líquidos ou brutos, conforme campo usado) de atendimentos no período selecionado.
+    **Receita Total**  
+    Soma de todos os valores líquidos de atendimentos no período.
 
     **Quantidade de Atendimentos**  
-    Número de registros de atendimentos no período (cada linha = 1 atendimento).
+    Número de atendimentos únicos (id_venda) no período.
 
     **Clientes Únicos**  
-    Número de clientes distintos atendidos no período.
+    Número de clientes distintos atendidos.
 
     **Ticket Médio por Atendimento**  
-    $$\\text{Ticket Médio} = \\frac{\\text{Receita Total}}{\\#\\text{Atendimentos}}$$
-
-    **Receita Ecommerce (Rede / Franquias)**  
-    Soma dos valores de vouchers vendidos (PRICE_NET) no ecommerce.
-
-    **Pedidos Ecommerce**  
-    Número de pedidos únicos (ID do pedido) no ecommerce.
-
-    **Vouchers Vendidos**  
-    Quantidade total de vouchers (cada linha da tabela de ecommerce é um voucher).
+    Receita Total ÷ Quantidade de Atendimentos
     """)
 
-# -----------------------------------------------------------------------------
-# TABELA DETALHADA DE ATENDIMENTOS
-# -----------------------------------------------------------------------------
-st.divider()
-st.subheader("Dados Detalhados de Atendimentos (Top 100 linhas)")
-
-cols_detalhe = [c for c in [data_col, 'unidade', 'nome_cliente', 'nome_servico_simplificado', valor_col] if c in df.columns]
-df_view = df[cols_detalhe].head(100)
-
-st.dataframe(df_view, use_container_width=True, height=300)
-
-csv_atend = df.to_csv(index=False).encode('utf-8')
-st.download_button(
-    "Download CSV Completo de Atendimentos",
-    csv_atend,
-    f"buddha_atendimentos_{data_inicio}_{data_fim}.csv",
-    "text/csv"
-)
-
-st.caption("Buddha Spa Dashboard – Versão alinhada ao pedido do chefe (base itens_atendimentos_analytics).")
+st.caption("Buddha Spa Dashboard – Portal de Franqueados")
