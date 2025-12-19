@@ -393,7 +393,7 @@ if st.sidebar.button("Sair", use_container_width=True):
 st.sidebar.markdown("---")
 
 col1, col2 = st.sidebar.columns(2)
-data_inicio = col1.date_input("De:", value=datetime(2025, 1, 1))
+data_inicio = col1.date_input("De:", value=datetime(2025, 9, 1))
 data_fim = col2.date_input("Até:", value=datetime(2025, 9, 30))
 
 if is_admin:
