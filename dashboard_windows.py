@@ -1,8 +1,40 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 from google.cloud import bigquery
 from datetime import datetime
+import locale
+
+# Tentar configurar locale brasileiro para formatação
+try:
+    locale.setlocale(locale.LC_ALL, 'pt_BR.UTF-8')
+except:
+    try:
+        locale.setlocale(locale.LC_ALL, 'pt_BR')
+    except:
+        pass
+
+# -----------------------------------------------------------------------------
+# FUNÇÕES DE FORMATAÇÃO BRASILEIRA
+# -----------------------------------------------------------------------------
+def formatar_moeda(valor):
+    """Formata valor em moeda brasileira: R$ 1.234,56"""
+    if pd.isna(valor):
+        return "R$ 0,00"
+    return f"R$ {valor:,.2f}".replace(',', '_').replace('.', ',').replace('_', '.')
+
+def formatar_numero(valor):
+    """Formata número inteiro: 1.234"""
+    if pd.isna(valor):
+        return "0"
+    return f"{int(valor):,}".replace(',', '.')
+
+def formatar_percentual(valor):
+    """Formata percentual: 12,34%"""
+    if pd.isna(valor):
+        return "0,00%"
+    return f"{valor:.2f}%".replace('.', ',')
 
 # -----------------------------------------------------------------------------
 # CONFIGURAÇÃO DA PÁGINA
@@ -57,22 +89,20 @@ if not st.session_state.autenticado:
             <p style='color: #666;'>Faça login para acessar o dashboard</p>
         </div>
     """, unsafe_allow_html=True)
-
+    
     col1, col2, col3 = st.columns([1, 2, 1])
-
     with col2:
         with st.form("login_form"):
             email = st.text_input("Email", placeholder="seu.email@buddhaspa.com.br")
             senha = st.text_input("Senha", type="password", placeholder="Digite sua senha")
             submit = st.form_submit_button("Entrar", use_container_width=True)
-
+            
             if submit:
                 if fazer_login(email, senha):
                     st.success(f"Bem-vindo, {st.session_state.nome}!")
                     st.rerun()
                 else:
                     st.error("Email ou senha incorretos")
-
     st.stop()
 
 unidade_usuario = st.session_state.unidade
@@ -83,72 +113,19 @@ is_admin = (unidade_usuario == 'TODAS')
 # -----------------------------------------------------------------------------
 st.markdown("""
     <style>
-    .stApp {
-        background-color: #F5F0E6;
-    }
-    [data-testid="stSidebar"] {
-        background-color: #FFFFFF;
-    }
-    .stMetric {
-        background-color: #FFFFFF;
-        padding: 18px;
-        border-radius: 10px;
-        border: 2px solid #8B0000;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        min-height: 110px;
-    }
-    .stMetric label {
-        color: #8B0000 !important;
-        font-size: 0.85rem !important;
-        font-weight: 600 !important;
-    }
-    .stMetric [data-testid="stMetricValue"] {
-        color: #333333 !important;
-        font-size: 1.6rem !important;
-        font-weight: 700 !important;
-        line-height: 1.1 !important;
-    }
-    h1 {
-        color: #8B0000 !important;
-        font-weight: 700 !important;
-    }
-    h2, h3 {
-        color: #8B0000 !important;
-    }
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
-        background-color: #FFFFFF;
-        padding: 10px;
-        border-radius: 10px;
-    }
-    .stTabs [data-baseweb="tab"] {
-        background-color: #F5F0E6;
-        color: #8B0000;
-        border-radius: 5px;
-        padding: 10px 20px;
-        font-weight: 600;
-    }
-    .stTabs [aria-selected="true"] {
-        background-color: #8B0000;
-        color: #FFFFFF;
-    }
-    .stButton > button,
-    .stDownloadButton > button {
-        background-color: #8B0000;
-        color: #FFFFFF;
-        border-radius: 5px;
-        border: none;
-        font-weight: 600;
-    }
-    .stButton > button:hover,
-    .stDownloadButton > button:hover {
-        background-color: #A52A2A;
-    }
-    .stDataFrame {
-        background-color: #FFFFFF;
-        border-radius: 10px;
-        padding: 10px;
-    }
+        .stMetric {
+            background-color: #F5F0E6;
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid #8B0000;
+        }
+        .stMetric label {
+            color: #8B0000 !important;
+            font-weight: bold;
+        }
+        .stMetric [data-testid="stMetricValue"] {
+            color: #2C1810;
+        }
     </style>
 """, unsafe_allow_html=True)
 
@@ -159,7 +136,7 @@ st.markdown("""
 def get_bigquery_client():
     from google.oauth2 import service_account
     from google.cloud import bigquery
-
+    
     if 'gcp_service_account' in st.secrets:
         credentials = service_account.Credentials.from_service_account_info(
             st.secrets["gcp_service_account"]
@@ -174,13 +151,13 @@ def get_bigquery_client():
 @st.cache_data(ttl=3600)
 def load_atendimentos(data_inicio, data_fim, unidade_filtro=None):
     client = get_bigquery_client()
-
+    
     filtro_unidade = ""
     if unidade_filtro and unidade_filtro != 'TODAS':
         filtro_unidade = f"AND LOWER(unidade) = LOWER('{unidade_filtro}')"
-
+    
     query = f"""
-    SELECT
+    SELECT 
         id_venda,
         unidade,
         DATE(data_atendimento) AS data_atendimento,
@@ -192,8 +169,7 @@ def load_atendimentos(data_inicio, data_fim, unidade_filtro=None):
         SUM(valor_bruto) AS valor_bruto,
         COUNT(*) AS qtd_itens
     FROM `buddha-bigdata.analytics.itens_atendimentos_analytics`
-    WHERE 
-        data_atendimento BETWEEN '{data_inicio}' AND '{data_fim}'
+    WHERE data_atendimento BETWEEN '{data_inicio}' AND '{data_fim}'
         AND tipo_item = 'Serviço'
         {filtro_unidade}
     GROUP BY id_venda, unidade, data_atendimento, nome_cliente, profissional, forma_pagamento, nome_servico_simplificado
@@ -203,13 +179,13 @@ def load_atendimentos(data_inicio, data_fim, unidade_filtro=None):
 @st.cache_data(ttl=3600)
 def load_atendimentos_detalhados(data_inicio, data_fim, unidade_filtro=None):
     client = get_bigquery_client()
-
+    
     filtro_unidade = ""
     if unidade_filtro and unidade_filtro != 'TODAS':
         filtro_unidade = f"AND LOWER(unidade) = LOWER('{unidade_filtro}')"
-
+    
     query = f"""
-    SELECT
+    SELECT 
         id_venda,
         unidade,
         DATE(data_atendimento) AS data_atendimento,
@@ -220,8 +196,7 @@ def load_atendimentos_detalhados(data_inicio, data_fim, unidade_filtro=None):
         valor_liquido,
         valor_bruto
     FROM `buddha-bigdata.analytics.itens_atendimentos_analytics`
-    WHERE 
-        data_atendimento BETWEEN '{data_inicio}' AND '{data_fim}'
+    WHERE data_atendimento BETWEEN '{data_inicio}' AND '{data_fim}'
         AND tipo_item = 'Serviço'
         {filtro_unidade}
     """
@@ -244,28 +219,56 @@ def load_ecommerce_data(data_inicio, data_fim):
     client = get_bigquery_client()
     query = f"""
     SELECT 
-        s.ID, 
+        s.ID,
         s.NAME,
         s.STATUS,
-        s.COUPONS, 
-        s.CREATED_DATE, 
+        s.COUPONS,
+        s.CREATED_DATE,
         DATETIME(s.CREATED_DATE, "America/Sao_Paulo") AS CREATED_DATE_BRAZIL,
-        s.USED_DATE, 
+        s.USED_DATE,
         DATETIME(s.USED_DATE, "America/Sao_Paulo") AS USED_DATE_BRAZIL,
-        s.PRICE_NET, 
-        s.PRICE_GROSS, 
-        s.PRICE_REFOUND, 
-        s.KEY, 
-        s.ORDER_ID, 
-        (SELECT p.NAME FROM `buddha-bigdata.raw.packages_raw` p WHERE p.ID = s.PACKAGE_ID) AS PACKAGE_NAME, 
-        (SELECT u.post_title FROM `buddha-bigdata.raw.wp_posts` u 
-         WHERE u.post_type = 'unidade' 
-           AND u.ID = CAST(CAST(s.AFILLIATION_ID AS FLOAT64) AS INT64)) AS AFILLIATION_NAME
+        s.PRICE_NET,
+        s.PRICE_GROSS,
+        s.PRICE_REFOUND,
+        s.KEY,
+        s.ORDER_ID,
+        (SELECT p.NAME FROM `buddha-bigdata.raw.packages_raw` p WHERE p.ID = s.PACKAGE_ID) AS PACKAGE_NAME,
+        (SELECT u.post_title FROM `buddha-bigdata.raw.wp_posts` u WHERE u.post_type = 'unidade' AND u.ID = CAST(CAST(s.AFILLIATION_ID AS FLOAT64) AS INT64)) AS AFILLIATION_NAME,
+        (SELECT MAX(CASE WHEN pm.meta_key = '_billing_city' THEN pm.meta_value END) 
+         FROM `buddha-bigdata.raw.wp_posts` o
+         LEFT JOIN `buddha-bigdata.raw.wp_postmeta` pm ON o.ID = pm.post_id
+         WHERE o.ID = CAST(CAST(s.ORDER_ID AS FLOAT64) AS INT64)) AS Customer_City,
+        (SELECT MAX(CASE WHEN pm.meta_key = '_billing_state' THEN pm.meta_value END) 
+         FROM `buddha-bigdata.raw.wp_posts` o
+         LEFT JOIN `buddha-bigdata.raw.wp_postmeta` pm ON o.ID = pm.post_id
+         WHERE o.ID = CAST(CAST(s.ORDER_ID AS FLOAT64) AS INT64)) AS Customer_State
     FROM `buddha-bigdata.raw.ecommerce_raw` s
-    WHERE 
-        s.CREATED_DATE >= TIMESTAMP('{data_inicio} 00:00:00', 'America/Sao_Paulo')
+    WHERE s.CREATED_DATE >= TIMESTAMP('{data_inicio} 00:00:00', 'America/Sao_Paulo')
         AND s.CREATED_DATE <= TIMESTAMP('{data_fim} 23:59:59', 'America/Sao_Paulo')
         AND s.STATUS IN ('1','2','3')
+    """
+    return client.query(query).to_dataframe()
+
+@st.cache_data(ttl=3600)
+def load_nps_data(data_inicio, data_fim, unidade_filtro=None):
+    client = get_bigquery_client()
+    
+    filtro_unidade = ""
+    if unidade_filtro and unidade_filtro != 'TODAS':
+        filtro_unidade = f"AND LOWER(unidade) = LOWER('{unidade_filtro}')"
+    
+    query = f"""
+    SELECT 
+        DATE(data) AS data,
+        unidade,
+        classificacao_padronizada,
+        nota,
+        flag_promotor,
+        flag_neutro,
+        flag_detrator
+    FROM `buddha-bigdata.analytics.analise_nps_analytics`
+    WHERE DATE(data) BETWEEN DATE('{data_inicio}') AND DATE('{data_fim}')
+        {filtro_unidade}
     """
     return client.query(query).to_dataframe()
 
@@ -275,15 +278,14 @@ def load_ecommerce_data(data_inicio, data_fim):
 @st.cache_data(ttl=3600)
 def load_ga4_pages(data_inicio, data_fim):
     client = get_bigquery_client()
-    # Converte string YYYYMMDD para DATE e faz cast de métricas para FLOAT64
     query = f"""
-    SELECT
-      PARSE_DATE('%Y%m%d', CAST(date AS STRING)) AS data,
-      pagePath AS page_path,
-      pageTitle AS page_title,
-      CAST(screenPageViews AS FLOAT64) AS page_views,
-      CAST(totalUsers AS FLOAT64) AS usuarios,
-      CAST(averageSessionDuration AS FLOAT64) AS duracao_media_sessao
+    SELECT 
+        PARSE_DATE('%Y%m%d', CAST(date AS STRING)) AS data,
+        pagePath AS page_path,
+        pageTitle AS page_title,
+        CAST(screenPageViews AS FLOAT64) AS page_views,
+        CAST(totalUsers AS FLOAT64) AS usuarios,
+        CAST(averageSessionDuration AS FLOAT64) AS duracao_media_sessao
     FROM `buddha-bigdata.ga4_historical_us.ga4_pages_historical`
     WHERE PARSE_DATE('%Y%m%d', CAST(date AS STRING)) BETWEEN DATE('{data_inicio}') AND DATE('{data_fim}')
     """
@@ -293,17 +295,17 @@ def load_ga4_pages(data_inicio, data_fim):
 def load_ga4_traffic(data_inicio, data_fim):
     client = get_bigquery_client()
     query = f"""
-    SELECT
-      PARSE_DATE('%Y%m%d', CAST(date AS STRING)) AS data,
-      sessionDefaultChannelGrouping AS canal,
-      sessionSource AS origem,
-      sessionMedium AS meio,
-      deviceCategory AS dispositivo,
-      SUM(CAST(sessions AS FLOAT64)) AS sessoes,
-      SUM(CAST(totalUsers AS FLOAT64)) AS usuarios,
-      SUM(CAST(newUsers AS FLOAT64)) AS novos_usuarios,
-      SUM(CAST(screenPageViews AS FLOAT64)) AS pageviews,
-      SUM(CAST(userEngagementDuration AS FLOAT64)) AS duracao_engajamento
+    SELECT 
+        PARSE_DATE('%Y%m%d', CAST(date AS STRING)) AS data,
+        sessionDefaultChannelGrouping AS canal,
+        sessionSource AS origem,
+        sessionMedium AS meio,
+        deviceCategory AS dispositivo,
+        SUM(CAST(sessions AS FLOAT64)) AS sessoes,
+        SUM(CAST(totalUsers AS FLOAT64)) AS usuarios,
+        SUM(CAST(newUsers AS FLOAT64)) AS novos_usuarios,
+        SUM(CAST(screenPageViews AS FLOAT64)) AS pageviews,
+        SUM(CAST(userEngagementDuration AS FLOAT64)) AS duracao_engajamento
     FROM `buddha-bigdata.ga4_historical_us.ga4_traffic_sources_historical`
     WHERE PARSE_DATE('%Y%m%d', CAST(date AS STRING)) BETWEEN DATE('{data_inicio}') AND DATE('{data_fim}')
     GROUP BY data, canal, origem, meio, dispositivo
@@ -314,12 +316,12 @@ def load_ga4_traffic(data_inicio, data_fim):
 def load_ga4_events(data_inicio, data_fim):
     client = get_bigquery_client()
     query = f"""
-    SELECT
-      PARSE_DATE('%Y%m%d', CAST(date AS STRING)) AS data,
-      eventName AS evento,
-      sessionDefaultChannelGrouping AS canal,
-      SUM(CAST(eventCount AS FLOAT64)) AS total_eventos,
-      SUM(CAST(totalUsers AS FLOAT64)) AS usuarios
+    SELECT 
+        PARSE_DATE('%Y%m%d', CAST(date AS STRING)) AS data,
+        eventName AS evento,
+        sessionDefaultChannelGrouping AS canal,
+        SUM(CAST(eventCount AS FLOAT64)) AS total_eventos,
+        SUM(CAST(totalUsers AS FLOAT64)) AS usuarios
     FROM `buddha-bigdata.ga4_historical_us.ga4_events_historical`
     WHERE PARSE_DATE('%Y%m%d', CAST(date AS STRING)) BETWEEN DATE('{data_inicio}') AND DATE('{data_fim}')
     GROUP BY data, evento, canal
@@ -333,17 +335,17 @@ def load_ga4_events(data_inicio, data_fim):
 def load_instagram_posts(data_inicio, data_fim):
     client = get_bigquery_client()
     query = f"""
-    SELECT
-      DATE(data) AS data_post,
-      nome,
-      visualizacoes,
-      compartilhamentos,
-      curtidas,
-      comentarios,
-      impressoes,
-      alcance,
-      vendas,
-      id_post
+    SELECT 
+        DATE(data) AS data_post,
+        nome,
+        visualizacoes,
+        compartilhamentos,
+        curtidas,
+        comentarios,
+        impressoes,
+        alcance,
+        vendas,
+        id_post
     FROM `buddha-bigdata.raw.instagram_posts`
     WHERE DATE(data) BETWEEN DATE('{data_inicio}') AND DATE('{data_fim}')
     """
@@ -353,9 +355,9 @@ def load_instagram_posts(data_inicio, data_fim):
 def load_instagram_seguidores(data_inicio, data_fim):
     client = get_bigquery_client()
     query = f"""
-    SELECT
-      DATE(data) AS data_registro,
-      qtd_seguidores
+    SELECT 
+        DATE(data) AS data_registro,
+        qtd_seguidores
     FROM `buddha-bigdata.raw.instagram_seguidores`
     WHERE DATE(data) BETWEEN DATE('{data_inicio}') AND DATE('{data_fim}')
     ORDER BY data_registro
@@ -366,15 +368,15 @@ def load_instagram_seguidores(data_inicio, data_fim):
 def load_meta_ads(data_inicio, data_fim):
     client = get_bigquery_client()
     query = f"""
-    SELECT
-      DATE(data) AS data,
-      nome,
-      impressoes,
-      alcance,
-      cliques,
-      vendas,
-      investido,
-      vendas_valor
+    SELECT 
+        DATE(data) AS data,
+        nome,
+        impressoes,
+        alcance,
+        cliques,
+        vendas,
+        investido,
+        vendas_valor
     FROM `buddha-bigdata.raw.meta_ads`
     WHERE DATE(data) BETWEEN DATE('{data_inicio}') AND DATE('{data_fim}')
     """
@@ -384,8 +386,8 @@ def load_meta_ads(data_inicio, data_fim):
 # SIDEBAR – FILTROS
 # -----------------------------------------------------------------------------
 st.sidebar.title("Filtros")
-
 st.sidebar.success(f"Bem-vindo, {st.session_state.nome}!")
+
 if st.sidebar.button("Sair", use_container_width=True):
     fazer_logout()
     st.rerun()
@@ -450,10 +452,10 @@ qtd_clientes = int(df['nome_cliente'].nunique()) if 'nome_cliente' in df.columns
 ticket_medio = receita_total / qtd_atendimentos if qtd_atendimentos > 0 else 0
 
 colk1, colk2, colk3, colk4 = st.columns(4)
-colk1.metric("Receita Total", f"R$ {receita_total:,.2f}")
-colk2.metric("Quantidade de Atendimentos", f"{qtd_atendimentos:,d}")
-colk3.metric("Clientes Únicos", f"{qtd_clientes:,d}")
-colk4.metric("Ticket Médio por Atendimento", f"R$ {ticket_medio:,.2f}")
+colk1.metric("Receita Total", formatar_moeda(receita_total))
+colk2.metric("Quantidade de Atendimentos", formatar_numero(qtd_atendimentos))
+colk3.metric("Clientes Únicos", formatar_numero(qtd_clientes))
+colk4.metric("Ticket Médio por Atendimento", formatar_moeda(ticket_medio))
 
 st.divider()
 
@@ -467,35 +469,116 @@ tab_visao, tab_atend, tab_fin, tab_mkt, tab_selfservice, tab_gloss = st.tabs(
 # ---------------------- TAB: VISÃO GERAL -------------------------
 with tab_visao:
     st.subheader("Evolução da Receita")
-
-    df_evolucao = (
-        df.groupby(data_col)[valor_col]
-        .sum()
-        .reset_index()
-        .sort_values(data_col)
-    )
-
-    fig = px.line(df_evolucao, x=data_col, y=valor_col, markers=True)
-    fig.update_traces(line_color='#8B0000', marker=dict(color='#8B0000'))
-    fig.update_layout(
-        xaxis_title="Data",
-        yaxis_title="Receita (R$)",
-        height=400,
-        plot_bgcolor='#FFFFFF',
-        paper_bgcolor='#F5F0E6'
-    )
+    
+    # Verificar se há múltiplas unidades selecionadas
+    if is_admin and unidades_selecionadas and len(unidades_selecionadas) > 1:
+        # Gráfico com múltiplas linhas (uma por unidade)
+        df_evolucao = (
+            df.groupby([data_col, 'unidade'])[valor_col]
+            .sum()
+            .reset_index()
+            .sort_values(data_col)
+        )
+        
+        fig = px.line(
+            df_evolucao, 
+            x=data_col, 
+            y=valor_col, 
+            color='unidade',
+            markers=True,
+            labels={valor_col: 'Receita (R$)', data_col: 'Data', 'unidade': 'Unidade'}
+        )
+        fig.update_layout(
+            xaxis_title="Data",
+            yaxis_title="Receita (R$)",
+            height=400,
+            plot_bgcolor='#FFFFFF',
+            paper_bgcolor='#F5F0E6',
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        )
+    else:
+        # Gráfico com linha única
+        df_evolucao = (
+            df.groupby(data_col)[valor_col]
+            .sum()
+            .reset_index()
+            .sort_values(data_col)
+        )
+        
+        fig = px.line(df_evolucao, x=data_col, y=valor_col, markers=True)
+        fig.update_traces(line_color='#8B0000', marker=dict(color='#8B0000'))
+        fig.update_layout(
+            xaxis_title="Data",
+            yaxis_title="Receita (R$)",
+            height=400,
+            plot_bgcolor='#FFFFFF',
+            paper_bgcolor='#F5F0E6'
+        )
+    
+    # Formatar eixo Y com padrão brasileiro
+    fig.update_yaxes(tickformat=",.2f")
     st.plotly_chart(fig, use_container_width=True)
-
+    
     st.markdown("---")
+    
+    # NPS Score
+    st.subheader("NPS - Net Promoter Score")
+    with st.spinner("Carregando dados de NPS..."):
+        try:
+            if is_admin and unidades_selecionadas:
+                df_nps = load_nps_data(data_inicio, data_fim, unidade_filtro=None)
+                df_nps = df_nps[df_nps['unidade'].str.lower().isin(unidades_selecionadas)]
+            elif is_admin:
+                df_nps = load_nps_data(data_inicio, data_fim, unidade_filtro=None)
+            else:
+                df_nps = load_nps_data(data_inicio, data_fim, unidade_filtro=unidade_usuario)
+        except Exception as e:
+            st.error(f"Erro ao carregar NPS: {e}")
+            df_nps = pd.DataFrame()
+    
+    if not df_nps.empty:
+        total_respostas = len(df_nps)
+        promotores = int(df_nps['flag_promotor'].sum())
+        neutros = int(df_nps['flag_neutro'].sum())
+        detratores = int(df_nps['flag_detrator'].sum())
+        
+        # Cálculo do NPS
+        nps_score = ((promotores - detratores) / total_respostas * 100) if total_respostas > 0 else 0
+        
+        col_nps1, col_nps2, col_nps3, col_nps4 = st.columns(4)
+        col_nps1.metric("NPS Score", formatar_percentual(nps_score))
+        col_nps2.metric("Promotores", formatar_numero(promotores), delta=formatar_percentual(promotores/total_respostas*100 if total_respostas > 0 else 0))
+        col_nps3.metric("Neutros", formatar_numero(neutros), delta=formatar_percentual(neutros/total_respostas*100 if total_respostas > 0 else 0))
+        col_nps4.metric("Detratores", formatar_numero(detratores), delta=formatar_percentual(detratores/total_respostas*100 if total_respostas > 0 else 0))
+        
+        # Gráfico de pizza NPS
+        df_nps_dist = pd.DataFrame({
+            'Classificação': ['Promotores', 'Neutros', 'Detratores'],
+            'Quantidade': [promotores, neutros, detratores]
+        })
+        
+        fig_nps = px.pie(
+            df_nps_dist,
+            names='Classificação',
+            values='Quantidade',
+            color='Classificação',
+            color_discrete_map={'Promotores': '#2E7D32', 'Neutros': '#FFA726', 'Detratores': '#D32F2F'}
+        )
+        fig_nps.update_layout(paper_bgcolor='#F5F0E6', height=400)
+        st.plotly_chart(fig_nps, use_container_width=True)
+    else:
+        st.info("Sem dados de NPS para o período selecionado.")
+    
+    st.markdown("---")
+    
     st.subheader("Receita por Unidade")
-
     df_unidades = (
         df.groupby('unidade')[valor_col]
         .sum()
         .reset_index()
         .sort_values(valor_col, ascending=False)
     )
-
+    
     fig_u = px.bar(
         df_unidades,
         x=valor_col,
@@ -509,12 +592,13 @@ with tab_visao:
         paper_bgcolor='#F5F0E6',
         height=450
     )
+    fig_u.update_xaxes(tickformat=",.2f")
     st.plotly_chart(fig_u, use_container_width=True)
 
 # ---------------------- TAB: ATENDIMENTO -------------------------
 with tab_atend:
     st.subheader("Performance por Terapeuta")
-
+    
     if 'profissional' in df.columns:
         df_terap = (
             df.groupby(['unidade', 'profissional'])
@@ -527,12 +611,13 @@ with tab_atend:
         )
         df_terap['ticket_medio'] = df_terap['receita'] / df_terap['qtd_atendimentos']
         df_terap = df_terap.sort_values('receita', ascending=False)
-
+        
         cola, colb = st.columns([2, 1])
-
+        
         with cola:
             st.markdown("### Top Terapeutas por Receita")
             top_terap = df_terap.head(15)
+            
             fig_t = px.bar(
                 top_terap,
                 x='receita',
@@ -550,24 +635,29 @@ with tab_atend:
                 paper_bgcolor='#F5F0E6',
                 height=500
             )
+            fig_t.update_xaxes(tickformat=",.2f")
             st.plotly_chart(fig_t, use_container_width=True)
-
+        
         with colb:
             st.markdown("### Tabela de Performance")
+            
+            # Formatar dataframe para exibição
+            df_terap_display = df_terap.copy()
+            df_terap_display['receita'] = df_terap_display['receita'].apply(formatar_moeda)
+            df_terap_display['qtd_atendimentos'] = df_terap_display['qtd_atendimentos'].apply(formatar_numero)
+            df_terap_display['clientes_unicos'] = df_terap_display['clientes_unicos'].apply(formatar_numero)
+            df_terap_display['ticket_medio'] = df_terap_display['ticket_medio'].apply(formatar_moeda)
+            
             st.dataframe(
-                df_terap.style.format({
-                    'receita': 'R$ {:,.2f}',
-                    'qtd_atendimentos': '{:,.0f}',
-                    'clientes_unicos': '{:,.0f}',
-                    'ticket_medio': 'R$ {:,.2f}'
-                }),
+                df_terap_display,
                 use_container_width=True,
                 height=500
             )
-
+    
     st.markdown("---")
+    
     st.subheader("Principais Serviços (Presencial)")
-
+    
     if 'nome_servico_simplificado' in df_detalhado.columns:
         df_servicos = (
             df_detalhado.groupby('nome_servico_simplificado')[valor_col]
@@ -577,9 +667,9 @@ with tab_atend:
         )
         df_servicos['perc_receita'] = df_servicos['receita'] / df_servicos['receita'].sum()
         df_servicos = df_servicos.sort_values('receita', ascending=False).head(15)
-
+        
         cols1, cols2 = st.columns([2, 1])
-
+        
         with cols1:
             fig_s = px.bar(
                 df_servicos,
@@ -595,19 +685,22 @@ with tab_atend:
                 paper_bgcolor='#F5F0E6',
                 height=500
             )
+            fig_s.update_xaxes(tickformat=",.2f")
             st.plotly_chart(fig_s, use_container_width=True)
-
+        
         with cols2:
+            # Formatar tabela
+            df_servicos_display = df_servicos.copy()
+            df_servicos_display['receita_fmt'] = df_servicos_display['receita'].apply(formatar_moeda)
+            df_servicos_display['qtd_fmt'] = df_servicos_display['qtd'].apply(formatar_numero)
+            df_servicos_display['perc_receita_fmt'] = df_servicos_display['perc_receita'].apply(lambda x: formatar_percentual(x*100))
+            
             st.dataframe(
-                df_servicos.rename(columns={
+                df_servicos_display[['nome_servico_simplificado', 'receita_fmt', 'qtd_fmt', 'perc_receita_fmt']].rename(columns={
                     'nome_servico_simplificado': 'Serviço',
-                    'receita': 'Receita',
-                    'qtd': 'Quantidade',
-                    'perc_receita': '% Receita'
-                }).style.format({
-                    'Receita': 'R$ {:,.2f}',
-                    'Quantidade': '{:,.0f}',
-                    '% Receita': '{:.1%}'
+                    'receita_fmt': 'Receita',
+                    'qtd_fmt': 'Quantidade',
+                    'perc_receita_fmt': '% Receita'
                 }),
                 use_container_width=True,
                 height=500
@@ -616,15 +709,66 @@ with tab_atend:
 # ---------------------- TAB: FINANCEIRO -------------------------
 with tab_fin:
     st.subheader("Resumo Financeiro da Unidade")
-
+    
     colf1, colf2, colf3 = st.columns(3)
-    colf1.metric("Receita Total (Atendimentos)", f"R$ {receita_total:,.2f}")
-    colf2.metric("Quantidade de Atendimentos", f"{qtd_atendimentos:,d}")
-    colf3.metric("Ticket Médio Unidade", f"R$ {ticket_medio:,.2f}")
-
+    colf1.metric("Receita Total (Atendimentos)", formatar_moeda(receita_total))
+    colf2.metric("Quantidade de Atendimentos", formatar_numero(qtd_atendimentos))
+    colf3.metric("Ticket Médio Unidade", formatar_moeda(ticket_medio))
+    
     st.markdown("---")
+    
+    # Distribuição de Receita (Pizza Chart)
+    st.subheader("Distribuição de Receita por Canal")
+    
+    with st.spinner("Carregando dados de ecommerce..."):
+        try:
+            df_ecom_dist = load_ecommerce_data(data_inicio, data_fim)
+        except Exception as e:
+            st.error(f"Erro ao carregar ecommerce: {e}")
+            df_ecom_dist = pd.DataFrame()
+    
+    # Calcular distribuição
+    receita_vendas_locais = receita_total
+    receita_voucher = 0
+    receita_parcerias = 0
+    
+    if not df_ecom_dist.empty:
+        df_ecom_dist['PRICE_NET'] = pd.to_numeric(df_ecom_dist['PRICE_NET'], errors='coerce')
+        receita_voucher = df_ecom_dist['PRICE_NET'].fillna(0).sum()
+        
+        # Identificar parcerias (se houver cupom)
+        if 'COUPONS' in df_ecom_dist.columns:
+            df_parcerias = df_ecom_dist[df_ecom_dist['COUPONS'].notna() & (df_ecom_dist['COUPONS'] != '')]
+            receita_parcerias = df_parcerias['PRICE_NET'].fillna(0).sum()
+    
+    faturamento_total = receita_vendas_locais + receita_voucher
+    
+    # Cards de resumo
+    cold1, cold2, cold3, cold4 = st.columns(4)
+    cold1.metric("Vendas Locais", formatar_moeda(receita_vendas_locais))
+    cold2.metric("Voucher Online", formatar_moeda(receita_voucher))
+    cold3.metric("Faturamento Total", formatar_moeda(faturamento_total))
+    cold4.metric("Parcerias", formatar_moeda(receita_parcerias))
+    
+    # Pizza chart de distribuição
+    df_dist = pd.DataFrame({
+        'Canal': ['Vendas Locais', 'Voucher Online', 'Parcerias'],
+        'Receita': [receita_vendas_locais, receita_voucher, receita_parcerias]
+    })
+    df_dist = df_dist[df_dist['Receita'] > 0]
+    
+    fig_dist = px.pie(
+        df_dist,
+        names='Canal',
+        values='Receita',
+        labels={'Receita': 'Receita (R$)', 'Canal': 'Canal'}
+    )
+    fig_dist.update_layout(paper_bgcolor='#F5F0E6', height=400)
+    st.plotly_chart(fig_dist, use_container_width=True)
+    
+    st.markdown("---")
+    
     st.subheader("Receita por Unidade")
-
     df_fin_unid = (
         df.groupby('unidade')[valor_col]
         .sum()
@@ -632,7 +776,7 @@ with tab_fin:
         .rename(columns={valor_col: 'receita'})
         .sort_values('receita', ascending=False)
     )
-
+    
     fig_fu = px.bar(
         df_fin_unid,
         x='receita',
@@ -646,11 +790,13 @@ with tab_fin:
         paper_bgcolor='#F5F0E6',
         height=450
     )
+    fig_fu.update_xaxes(tickformat=",.2f")
     st.plotly_chart(fig_fu, use_container_width=True)
-
+    
     st.markdown("---")
+    
     st.subheader("Serviços Presenciais Mais Vendidos (Financeiro)")
-
+    
     if 'nome_servico_simplificado' in df_detalhado.columns:
         df_serv_fin = (
             df_detalhado.groupby('nome_servico_simplificado')[valor_col]
@@ -659,9 +805,9 @@ with tab_fin:
             .rename(columns={'sum': 'receita', 'count': 'qtd'})
         )
         df_serv_fin = df_serv_fin.sort_values('receita', ascending=False).head(10)
-
+        
         colf_s1, colf_s2 = st.columns([2, 1])
-
+        
         with colf_s1:
             fig_sf = px.bar(
                 df_serv_fin,
@@ -676,43 +822,36 @@ with tab_fin:
                 paper_bgcolor='#F5F0E6',
                 height=400
             )
+            fig_sf.update_xaxes(tickformat=",.2f")
             st.plotly_chart(fig_sf, use_container_width=True)
-
+        
         with colf_s2:
+            df_serv_fin_display = df_serv_fin.copy()
+            df_serv_fin_display['receita_fmt'] = df_serv_fin_display['receita'].apply(formatar_moeda)
+            df_serv_fin_display['qtd_fmt'] = df_serv_fin_display['qtd'].apply(formatar_numero)
+            
             st.dataframe(
-                df_serv_fin.rename(columns={
+                df_serv_fin_display[['nome_servico_simplificado', 'receita_fmt', 'qtd_fmt']].rename(columns={
                     'nome_servico_simplificado': 'Serviço',
-                    'receita': 'Receita',
-                    'qtd': 'Quantidade'
-                }).style.format({
-                    'Receita': 'R$ {:,.2f}',
-                    'Quantidade': '{:,.0f}'
+                    'receita_fmt': 'Receita',
+                    'qtd_fmt': 'Quantidade'
                 }),
                 use_container_width=True,
                 height=400
             )
-
+    
     st.markdown("---")
+    
     st.subheader("Itens Ecommerce Mais Vendidos (Financeiro)")
-
-    with st.spinner("Carregando dados de ecommerce..."):
-        try:
-            df_ecom_fin = load_ecommerce_data(data_inicio, data_fim)
-        except Exception as e:
-            st.error(f"Erro ao carregar ecommerce para o financeiro: {e}")
-            df_ecom_fin = pd.DataFrame()
-
-    if df_ecom_fin.empty:
-        st.info("Sem dados de ecommerce para o período selecionado.")
-    else:
-        df_ecom_fin['PRICE_NET'] = pd.to_numeric(df_ecom_fin['PRICE_NET'], errors='coerce')
-        if 'PACKAGE_NAME' in df_ecom_fin.columns:
-            df_ecom_fin['PACKAGE_NAME'] = df_ecom_fin['PACKAGE_NAME'].fillna(df_ecom_fin['NAME'])
+    
+    if not df_ecom_dist.empty:
+        if 'PACKAGE_NAME' in df_ecom_dist.columns:
+            df_ecom_dist['PACKAGE_NAME'] = df_ecom_dist['PACKAGE_NAME'].fillna(df_ecom_dist['NAME'])
         else:
-            df_ecom_fin['PACKAGE_NAME'] = df_ecom_fin['NAME']
-
+            df_ecom_dist['PACKAGE_NAME'] = df_ecom_dist['NAME']
+        
         df_ecom_top = (
-            df_ecom_fin
+            df_ecom_dist
             .groupby('PACKAGE_NAME')
             .agg(
                 qtde_vouchers=('ID', 'count'),
@@ -722,9 +861,9 @@ with tab_fin:
             .sort_values('receita_liquida', ascending=False)
             .head(10)
         )
-
+        
         colf_e1, colf_e2 = st.columns([2, 1])
-
+        
         with colf_e1:
             fig_ef = px.bar(
                 df_ecom_top,
@@ -739,62 +878,65 @@ with tab_fin:
                 paper_bgcolor='#F5F0E6',
                 height=400
             )
+            fig_ef.update_xaxes(tickformat=",.2f")
             st.plotly_chart(fig_ef, use_container_width=True)
-
+        
         with colf_e2:
+            df_ecom_top_display = df_ecom_top.copy()
+            df_ecom_top_display['qtde_vouchers_fmt'] = df_ecom_top_display['qtde_vouchers'].apply(formatar_numero)
+            df_ecom_top_display['receita_liquida_fmt'] = df_ecom_top_display['receita_liquida'].apply(formatar_moeda)
+            
             st.dataframe(
-                df_ecom_top.rename(columns={
+                df_ecom_top_display[['PACKAGE_NAME', 'qtde_vouchers_fmt', 'receita_liquida_fmt']].rename(columns={
                     'PACKAGE_NAME': 'Serviço / Pacote',
-                    'qtde_vouchers': 'Qtd Vouchers',
-                    'receita_liquida': 'Receita Líquida'
-                }).style.format({
-                    'Qtd Vouchers': '{:,.0f}',
-                    'Receita Líquida': 'R$ {:,.2f}'
+                    'qtde_vouchers_fmt': 'Qtd Vouchers',
+                    'receita_liquida_fmt': 'Receita Líquida'
                 }),
                 use_container_width=True,
                 height=400
             )
+    else:
+        st.info("Sem dados de ecommerce para o período selecionado.")
 
 # ---------------------- TAB: MARKETING & ECOMMERCE -------------------------
 with tab_mkt:
     # BLOCO 1 – ECOMMERCE
     st.subheader("Ecommerce – Vendas de Vouchers")
-
+    
     with st.spinner("Carregando dados de ecommerce..."):
         try:
             df_ecom = load_ecommerce_data(data_inicio, data_fim)
         except Exception as e:
             st.error(f"Erro ao carregar dados de ecommerce: {e}")
             df_ecom = pd.DataFrame()
-
+    
     if df_ecom.empty:
         st.warning("Sem dados de ecommerce para o período selecionado.")
     else:
         df_ecom['PRICE_GROSS'] = pd.to_numeric(df_ecom['PRICE_GROSS'], errors='coerce')
         df_ecom['PRICE_NET'] = pd.to_numeric(df_ecom['PRICE_NET'], errors='coerce')
-
+        
         if 'PACKAGE_NAME' in df_ecom.columns:
             df_ecom['PACKAGE_NAME'] = df_ecom['PACKAGE_NAME'].fillna(df_ecom['NAME'])
         else:
             df_ecom['PACKAGE_NAME'] = df_ecom['NAME']
-
+        
         if 'AFILLIATION_NAME' not in df_ecom.columns:
             df_ecom['AFILLIATION_NAME'] = "Sem Unidade"
-
+        
         colm1, colm2, colm3, colm4 = st.columns(4)
-
         total_pedidos = int(df_ecom['ORDER_ID'].nunique())
         total_vouchers = int(len(df_ecom))
         receita_liquida_e = df_ecom['PRICE_NET'].fillna(0).sum()
         ticket_medio_e = receita_liquida_e / total_pedidos if total_pedidos > 0 else 0
-
-        colm1.metric("Pedidos Ecommerce", f"{total_pedidos:,.0f}")
-        colm2.metric("Vouchers Vendidos", f"{total_vouchers:,.0f}")
-        colm3.metric("Receita Líquida Ecommerce", f"R$ {receita_liquida_e:,.2f}")
-        colm4.metric("Ticket Médio Ecommerce", f"R$ {ticket_medio_e:,.2f}")
-
+        
+        colm1.metric("Pedidos Ecommerce", formatar_numero(total_pedidos))
+        colm2.metric("Vouchers Vendidos", formatar_numero(total_vouchers))
+        colm3.metric("Receita Líquida Ecommerce", formatar_moeda(receita_liquida_e))
+        colm4.metric("Ticket Médio Ecommerce", formatar_moeda(ticket_medio_e))
+        
         st.markdown("### Top 10 Serviços / Pacotes Vendidos (Ecommerce)")
-
+        
         df_serv = (
             df_ecom
             .groupby('PACKAGE_NAME')
@@ -806,9 +948,9 @@ with tab_mkt:
             .sort_values('qtde_vouchers', ascending=False)
             .head(10)
         )
-
+        
         col_a, col_b = st.columns([2, 1])
-
+        
         with col_a:
             fig_serv = px.bar(
                 df_serv,
@@ -825,33 +967,67 @@ with tab_mkt:
                 height=450
             )
             st.plotly_chart(fig_serv, use_container_width=True)
-
+        
         with col_b:
+            df_serv_display = df_serv.copy()
+            df_serv_display['qtde_vouchers_fmt'] = df_serv_display['qtde_vouchers'].apply(formatar_numero)
+            df_serv_display['receita_liquida_fmt'] = df_serv_display['receita_liquida'].apply(formatar_moeda)
+            
             st.dataframe(
-                df_serv.rename(columns={
+                df_serv_display[['PACKAGE_NAME', 'qtde_vouchers_fmt', 'receita_liquida_fmt']].rename(columns={
                     'PACKAGE_NAME': 'Serviço / Pacote',
-                    'qtde_vouchers': 'Qtd Vouchers',
-                    'receita_liquida': 'Receita Líquida'
-                }).style.format({
-                    'Qtd Vouchers': '{:,.0f}',
-                    'Receita Líquida': 'R$ {:,.2f}'
+                    'qtde_vouchers_fmt': 'Qtd Vouchers',
+                    'receita_liquida_fmt': 'Receita Líquida'
                 }),
                 use_container_width=True,
                 height=450
             )
-
+        
+        st.markdown("---")
+        
+        # Análise Geográfica
+        st.subheader("Distribuição Geográfica - Vendas por Estado")
+        
+        if 'Customer_State' in df_ecom.columns:
+            df_geo = (
+                df_ecom.groupby('Customer_State')
+                .agg(
+                    qtde_vouchers=('ID', 'count'),
+                    receita=('PRICE_NET', 'sum')
+                )
+                .reset_index()
+                .sort_values('receita', ascending=False)
+                .head(10)
+            )
+            
+            fig_geo = px.bar(
+                df_geo,
+                x='receita',
+                y='Customer_State',
+                orientation='h',
+                labels={'receita': 'Receita (R$)', 'Customer_State': 'Estado'}
+            )
+            fig_geo.update_traces(marker_color='#8B0000')
+            fig_geo.update_layout(
+                plot_bgcolor='#FFFFFF',
+                paper_bgcolor='#F5F0E6',
+                height=400
+            )
+            fig_geo.update_xaxes(tickformat=",.2f")
+            st.plotly_chart(fig_geo, use_container_width=True)
+    
     st.markdown("---")
-
+    
     # BLOCO 2 – SITE / GA4 PÁGINAS
     st.subheader("Site – Pageviews por Página (GA4)")
-
+    
     with st.spinner("Carregando dados de páginas GA4..."):
         try:
             df_ga4_pages = load_ga4_pages(data_inicio, data_fim)
         except Exception as e:
             st.error(f"Erro ao carregar GA4 páginas: {e}")
             df_ga4_pages = pd.DataFrame()
-
+    
     if df_ga4_pages.empty:
         st.warning("Sem dados de páginas GA4 para o período selecionado.")
     else:
@@ -859,25 +1035,25 @@ with tab_mkt:
         df_ga4_pages.loc[df_ga4_pages['page_path'].str.contains('franquia', case=False, na=False), 'tipo_pagina'] = 'Franquias'
         df_ga4_pages.loc[df_ga4_pages['page_path'].str.contains('voucher', case=False, na=False), 'tipo_pagina'] = 'Ecommerce'
         df_ga4_pages.loc[df_ga4_pages['page_path'].str.contains('curso', case=False, na=False), 'tipo_pagina'] = 'Cursos'
-
+        
         colg1, colg2, colg3 = st.columns(3)
-
         total_pageviews = int(df_ga4_pages['page_views'].sum())
         total_usuarios = int(df_ga4_pages['usuarios'].sum())
         duracao_media = df_ga4_pages['duracao_media_sessao'].mean() if not df_ga4_pages['duracao_media_sessao'].isna().all() else 0
-
-        colg1.metric("Pageviews Totais (Site)", f"{total_pageviews:,d}")
-        colg2.metric("Usuários Totais", f"{total_usuarios:,d}")
-        colg3.metric("Duração Média da Sessão (s)", f"{duracao_media:,.1f}")
-
+        
+        colg1.metric("Pageviews Totais (Site)", formatar_numero(total_pageviews))
+        colg2.metric("Usuários Totais", formatar_numero(total_usuarios))
+        colg3.metric("Duração Média da Sessão (s)", f"{duracao_media:,.1f}".replace('.', ','))
+        
         st.markdown("### Pageviews por Tipo de Página")
+        
         df_tipo = (
             df_ga4_pages.groupby('tipo_pagina')['page_views']
             .sum()
             .reset_index()
             .sort_values('page_views', ascending=False)
         )
-
+        
         fig_pag = px.bar(
             df_tipo,
             x='page_views',
@@ -892,40 +1068,40 @@ with tab_mkt:
             height=400
         )
         st.plotly_chart(fig_pag, use_container_width=True)
-
+    
     st.markdown("---")
-
+    
     # BLOCO 3 – SITE / GA4 TRÁFEGO
     st.subheader("Site – Canais de Aquisição (GA4)")
-
+    
     with st.spinner("Carregando dados de tráfego GA4..."):
         try:
             df_ga4_traffic = load_ga4_traffic(data_inicio, data_fim)
         except Exception as e:
             st.error(f"Erro ao carregar GA4 tráfego: {e}")
             df_ga4_traffic = pd.DataFrame()
-
+    
     if df_ga4_traffic.empty:
         st.warning("Sem dados de tráfego GA4 para o período selecionado.")
     else:
         colt1, colt2, colt3 = st.columns(3)
-
         total_sessoes = int(df_ga4_traffic['sessoes'].sum())
         total_usuarios_t = int(df_ga4_traffic['usuarios'].sum())
         total_novos = int(df_ga4_traffic['novos_usuarios'].sum())
-
-        colt1.metric("Sessões Totais", f"{total_sessoes:,d}")
-        colt2.metric("Usuários Totais", f"{total_usuarios_t:,d}")
-        colt3.metric("Novos Usuários", f"{total_novos:,d}")
-
+        
+        colt1.metric("Sessões Totais", formatar_numero(total_sessoes))
+        colt2.metric("Usuários Totais", formatar_numero(total_usuarios_t))
+        colt3.metric("Novos Usuários", formatar_numero(total_novos))
+        
         st.markdown("### Sessões por Canal")
+        
         df_canal = (
             df_ga4_traffic.groupby('canal')['sessoes']
             .sum()
             .reset_index()
             .sort_values('sessoes', ascending=False)
         )
-
+        
         fig_can = px.bar(
             df_canal,
             x='sessoes',
@@ -940,15 +1116,16 @@ with tab_mkt:
             height=400
         )
         st.plotly_chart(fig_can, use_container_width=True)
-
+        
         st.markdown("### Sessões por Dispositivo")
+        
         df_disp = (
             df_ga4_traffic.groupby('dispositivo')['sessoes']
             .sum()
             .reset_index()
             .sort_values('sessoes', ascending=False)
         )
-
+        
         fig_disp = px.pie(
             df_disp,
             names='dispositivo',
@@ -960,25 +1137,25 @@ with tab_mkt:
             height=400
         )
         st.plotly_chart(fig_disp, use_container_width=True)
-
+    
     st.markdown("---")
-
+    
     # BLOCO 4 – EVENTOS GA4
     st.subheader("Site – Eventos Principais (GA4)")
-
+    
     with st.spinner("Carregando eventos GA4..."):
         try:
             df_ga4_events = load_ga4_events(data_inicio, data_fim)
         except Exception as e:
             st.error(f"Erro ao carregar eventos GA4: {e}")
             df_ga4_events = pd.DataFrame()
-
+    
     if df_ga4_events.empty:
         st.warning("Sem dados de eventos GA4 para o período selecionado.")
     else:
         eventos_interesse = ['form_submit', 'form_start', 'click', 'RD Popup e WhatsApp', 'RD Landing Pages']
         df_eventos_filtro = df_ga4_events[df_ga4_events['evento'].isin(eventos_interesse)]
-
+        
         if df_eventos_filtro.empty:
             st.info("Nenhum evento de interesse (form_submit, click, etc.) encontrado no período.")
         else:
@@ -988,7 +1165,7 @@ with tab_mkt:
                 .reset_index()
                 .sort_values('total_eventos', ascending=False)
             )
-
+            
             fig_ev = px.bar(
                 df_eventos_agg,
                 x='total_eventos',
@@ -1003,38 +1180,39 @@ with tab_mkt:
                 height=400
             )
             st.plotly_chart(fig_ev, use_container_width=True)
-
+    
     st.markdown("---")
-
+    
     # BLOCO 5 – INSTAGRAM POSTS
     st.subheader("Redes Sociais – Posts com Melhor Performance (Instagram)")
-
+    
     with st.spinner("Carregando posts do Instagram..."):
         try:
             df_ig = load_instagram_posts(data_inicio, data_fim)
         except Exception as e:
             st.error(f"Erro ao carregar instagram_posts: {e}")
             df_ig = pd.DataFrame()
-
+    
     if df_ig.empty:
         st.info("Sem posts do Instagram para o período selecionado.")
     else:
         for col in ['visualizacoes', 'compartilhamentos', 'curtidas', 'comentarios', 'impressoes', 'alcance', 'vendas']:
             if col in df_ig.columns:
                 df_ig[col] = pd.to_numeric(df_ig[col], errors='coerce').fillna(0)
-
+        
         coli1, coli2, coli3, coli4 = st.columns(4)
         total_posts = len(df_ig)
         total_curtidas = int(df_ig['curtidas'].sum())
         total_coment = int(df_ig['comentarios'].sum())
         total_impressoes = int(df_ig['impressoes'].sum()) if 'impressoes' in df_ig.columns else 0
-
-        coli1.metric("Total de Posts", f"{total_posts:,d}")
-        coli2.metric("Total de Curtidas", f"{total_curtidas:,d}")
-        coli3.metric("Total de Comentários", f"{total_coment:,d}")
-        coli4.metric("Total de Impressões", f"{total_impressoes:,d}")
-
+        
+        coli1.metric("Total de Posts", formatar_numero(total_posts))
+        coli2.metric("Total de Curtidas", formatar_numero(total_curtidas))
+        coli3.metric("Total de Comentários", formatar_numero(total_coment))
+        coli4.metric("Total de Impressões", formatar_numero(total_impressoes))
+        
         st.markdown("### Top 10 Posts por Engajamento (Curtidas + Comentários)")
+        
         df_ig['engajamento'] = df_ig['curtidas'] + df_ig['comentarios']
         df_top_eng = (
             df_ig.sort_values('engajamento', ascending=False)
@@ -1042,9 +1220,9 @@ with tab_mkt:
             .copy()
         )
         df_top_eng['legenda_curta'] = df_top_eng['nome'].str.slice(0, 60) + "..."
-
+        
         colg_a, colg_b = st.columns([2, 1])
-
+        
         with colg_a:
             fig_ig = px.bar(
                 df_top_eng,
@@ -1061,12 +1239,18 @@ with tab_mkt:
                 height=500
             )
             st.plotly_chart(fig_ig, use_container_width=True)
-
+        
         with colg_b:
             st.markdown("#### Detalhes dos Top Posts")
             st.dataframe(
                 df_top_eng[[
-                    'data_post', 'nome', 'visualizacoes', 'curtidas', 'comentarios', 'compartilhamentos', 'alcance'
+                    'data_post',
+                    'nome',
+                    'visualizacoes',
+                    'curtidas',
+                    'comentarios',
+                    'compartilhamentos',
+                    'alcance'
                 ]].rename(columns={
                     'data_post': 'Data',
                     'nome': 'Legenda',
@@ -1079,36 +1263,37 @@ with tab_mkt:
                 use_container_width=True,
                 height=500
             )
-
+    
     st.markdown("---")
-
+    
     # BLOCO 6 – SEGUIDORES INSTAGRAM
     st.subheader("Redes Sociais – Crescimento de Seguidores (Instagram)")
-
+    
     with st.spinner("Carregando dados de seguidores..."):
         try:
             df_seg = load_instagram_seguidores(data_inicio, data_fim)
         except Exception as e:
             st.error(f"Erro ao carregar instagram_seguidores: {e}")
             df_seg = pd.DataFrame()
-
+    
     if df_seg.empty:
         st.info("Sem dados de seguidores para o período selecionado.")
     else:
         df_seg['qtd_seguidores'] = pd.to_numeric(df_seg['qtd_seguidores'], errors='coerce')
         df_seg = df_seg.sort_values('data_registro')
-
+        
         seg_inicio = int(df_seg.iloc[0]['qtd_seguidores']) if len(df_seg) > 0 else 0
         seg_fim = int(df_seg.iloc[-1]['qtd_seguidores']) if len(df_seg) > 0 else 0
         crescimento = seg_fim - seg_inicio
         perc_crescimento = (crescimento / seg_inicio * 100) if seg_inicio > 0 else 0
-
+        
         cols1, cols2, cols3 = st.columns(3)
-        cols1.metric("Seguidores Atuais", f"{seg_fim:,d}")
-        cols2.metric("Crescimento no Período", f"{crescimento:+,d}", delta=f"{perc_crescimento:+.2f}%")
-        cols3.metric("Seguidores no Início", f"{seg_inicio:,d}")
-
+        cols1.metric("Seguidores Atuais", formatar_numero(seg_fim))
+        cols2.metric("Crescimento no Período", f"{crescimento:+,}".replace(',', '.'), delta=formatar_percentual(perc_crescimento))
+        cols3.metric("Seguidores no Início", formatar_numero(seg_inicio))
+        
         st.markdown("### Evolução de Seguidores")
+        
         fig_seg = px.line(
             df_seg,
             x='data_registro',
@@ -1123,42 +1308,42 @@ with tab_mkt:
             height=400
         )
         st.plotly_chart(fig_seg, use_container_width=True)
-
+    
     st.markdown("---")
-
+    
     # BLOCO 7 – META ADS
     st.subheader("Mídia Paga – Meta Ads")
-
+    
     with st.spinner("Carregando dados de Meta Ads..."):
         try:
             df_meta = load_meta_ads(data_inicio, data_fim)
         except Exception as e:
             st.error(f"Erro ao carregar meta_ads: {e}")
             df_meta = pd.DataFrame()
-
+    
     if df_meta.empty:
         st.info("Sem dados de Meta Ads para o período selecionado.")
     else:
         for col in ['impressoes', 'alcance', 'cliques', 'vendas', 'investido', 'vendas_valor']:
             if col in df_meta.columns:
                 df_meta[col] = pd.to_numeric(df_meta[col], errors='coerce').fillna(0)
-
+        
         m1, m2, m3, m4 = st.columns(4)
         total_imp = int(df_meta['impressoes'].sum())
         total_clicks = int(df_meta['cliques'].sum())
         total_invest = df_meta['investido'].sum()
         total_vendas_valor = df_meta['vendas_valor'].sum()
-
+        
         ctr = (total_clicks / total_imp * 100) if total_imp > 0 else 0
         roi = ((total_vendas_valor - total_invest) / total_invest * 100) if total_invest > 0 else 0
-
-        m1.metric("Impressões", f"{total_imp:,d}")
-        m2.metric("Cliques", f"{total_clicks:,d}", delta=f"CTR {ctr:.2f}%")
-        m3.metric("Investimento (R$)", f"R$ {total_invest:,.2f}")
-        m4.metric("Receita Atribuída (R$)", f"R$ {total_vendas_valor:,.2f}", delta=f"ROI {roi:.1f}%")
-
+        
+        m1.metric("Impressões", formatar_numero(total_imp))
+        m2.metric("Cliques", formatar_numero(total_clicks), delta=f"CTR {formatar_percentual(ctr)}")
+        m3.metric("Investimento (R$)", formatar_moeda(total_invest))
+        m4.metric("Receita Atribuída (R$)", formatar_moeda(total_vendas_valor), delta=f"ROI {formatar_percentual(roi)}")
+        
         st.markdown("### Campanhas com Maior Investimento")
-
+        
         df_meta_camp = (
             df_meta
             .groupby('nome')
@@ -1174,9 +1359,9 @@ with tab_mkt:
         df_meta_camp['ctr'] = df_meta_camp['cliques'] / df_meta_camp['impressoes']
         df_meta_camp['cpc'] = df_meta_camp['investido'] / df_meta_camp['cliques']
         df_meta_camp['roi'] = (df_meta_camp['vendas_valor'] - df_meta_camp['investido']) / df_meta_camp['investido']
-
+        
         df_meta_top = df_meta_camp.sort_values('investido', ascending=False).head(10)
-
+        
         fig_meta = px.bar(
             df_meta_top,
             x='investido',
@@ -1190,29 +1375,42 @@ with tab_mkt:
             paper_bgcolor='#F5F0E6',
             height=450
         )
+        fig_meta.update_xaxes(tickformat=",.2f")
         st.plotly_chart(fig_meta, use_container_width=True)
-
+        
         st.markdown("#### Detalhes das Campanhas (Top 10 por Investimento)")
+        
+        df_meta_top_display = df_meta_top.copy()
+        df_meta_top_display['impressoes_fmt'] = df_meta_top_display['impressoes'].apply(formatar_numero)
+        df_meta_top_display['cliques_fmt'] = df_meta_top_display['cliques'].apply(formatar_numero)
+        df_meta_top_display['vendas_fmt'] = df_meta_top_display['vendas'].apply(formatar_numero)
+        df_meta_top_display['investido_fmt'] = df_meta_top_display['investido'].apply(formatar_moeda)
+        df_meta_top_display['vendas_valor_fmt'] = df_meta_top_display['vendas_valor'].apply(formatar_moeda)
+        df_meta_top_display['ctr_fmt'] = df_meta_top_display['ctr'].apply(lambda x: formatar_percentual(x*100))
+        df_meta_top_display['cpc_fmt'] = df_meta_top_display['cpc'].apply(formatar_moeda)
+        df_meta_top_display['roi_fmt'] = df_meta_top_display['roi'].apply(lambda x: formatar_percentual(x*100))
+        
         st.dataframe(
-            df_meta_top.rename(columns={
+            df_meta_top_display[[
+                'nome',
+                'impressoes_fmt',
+                'cliques_fmt',
+                'vendas_fmt',
+                'investido_fmt',
+                'vendas_valor_fmt',
+                'ctr_fmt',
+                'cpc_fmt',
+                'roi_fmt'
+            ]].rename(columns={
                 'nome': 'Campanha',
-                'impressoes': 'Impressões',
-                'cliques': 'Cliques',
-                'vendas': 'Vendas',
-                'investido': 'Investido (R$)',
-                'vendas_valor': 'Receita (R$)',
-                'ctr': 'CTR',
-                'cpc': 'CPC',
-                'roi': 'ROI'
-            }).style.format({
-                'Impressões': '{:,.0f}',
-                'Cliques': '{:,.0f}',
-                'Vendas': '{:,.0f}',
-                'Investido (R$)': 'R$ {:,.2f}',
-                'Receita (R$)': 'R$ {:,.2f}',
-                'CTR': '{:.2%}',
-                'CPC': 'R$ {:,.2f}',
-                'ROI': '{:.1%}'
+                'impressoes_fmt': 'Impressões',
+                'cliques_fmt': 'Cliques',
+                'vendas_fmt': 'Vendas',
+                'investido_fmt': 'Investido (R$)',
+                'vendas_valor_fmt': 'Receita (R$)',
+                'ctr_fmt': 'CTR',
+                'cpc_fmt': 'CPC',
+                'roi_fmt': 'ROI'
             }),
             use_container_width=True,
             height=450
@@ -1221,9 +1419,9 @@ with tab_mkt:
 # ---------------------- TAB: SELF-SERVICE -------------------------
 with tab_selfservice:
     st.subheader("Monte Sua Própria Análise")
-
+    
     c1, c2 = st.columns(2)
-
+    
     with c1:
         st.markdown("### Agrupar Por")
         dimensoes = st.multiselect(
@@ -1231,7 +1429,7 @@ with tab_selfservice:
             ["Data", "Unidade", "Forma de Pagamento", "Serviço", "Terapeuta", "Cliente"],
             default=["Unidade"]
         )
-
+    
     with c2:
         st.markdown("### Métricas")
         metricas = st.multiselect(
@@ -1239,7 +1437,7 @@ with tab_selfservice:
             ["Receita Total", "Quantidade de Atendimentos", "Ticket Médio", "Clientes Únicos"],
             default=["Receita Total", "Quantidade de Atendimentos"]
         )
-
+    
     if dimensoes and metricas:
         dim_map = {
             "Data": data_col,
@@ -1249,26 +1447,29 @@ with tab_selfservice:
             "Terapeuta": "profissional",
             "Cliente": "nome_cliente"
         }
-
+        
         colunas_agrupamento = [dim_map[d] for d in dimensoes if dim_map[d] in df.columns]
-
+        
         if colunas_agrupamento:
             agg_dict = {}
+            
             if "Receita Total" in metricas:
                 agg_dict['receita_total'] = (valor_col, 'sum')
+            
             if "Quantidade de Atendimentos" in metricas:
                 agg_dict['qtd_atendimentos'] = ('id_venda', 'nunique')
+            
             if "Clientes Únicos" in metricas and 'nome_cliente' in df.columns:
                 agg_dict['clientes_unicos'] = ('nome_cliente', 'nunique')
-
+            
             df_custom = df.groupby(colunas_agrupamento).agg(**agg_dict).reset_index()
-
+            
             if "Ticket Médio" in metricas and 'receita_total' in df_custom.columns and 'qtd_atendimentos' in df_custom.columns:
                 df_custom['ticket_medio'] = df_custom['receita_total'] / df_custom['qtd_atendimentos']
-
+            
             st.markdown("---")
             st.dataframe(df_custom, use_container_width=True, height=400)
-
+            
             csv = df_custom.to_csv(index=False).encode('utf-8')
             st.download_button(
                 "Download CSV",
@@ -1280,24 +1481,41 @@ with tab_selfservice:
 # ---------------------- TAB: AJUDA / GLOSSÁRIO -------------------------
 with tab_gloss:
     st.subheader("Ajuda / Glossário de Métricas")
-
+    
     st.markdown("""
     ### 📊 Principais Métricas
-
-    **Receita Total** – Soma de todos os valores líquidos de atendimentos no período.  
-    **Quantidade de Atendimentos** – Número de atendimentos únicos (`id_venda`).  
-    **Clientes Únicos** – Número de clientes distintos atendidos.  
-    **Ticket Médio por Atendimento** – Receita Total ÷ Quantidade de Atendimentos.  
-
-    **Serviços Presenciais Mais Vendidos** – Ranking de serviços presenciais por receita e quantidade.  
-    **Itens Ecommerce Mais Vendidos** – Ranking de serviços/pacotes vendidos no ecommerce (vouchers).  
-
-    **Pageviews (GA4)** – Visualizações de página no site / páginas-chave.  
-    **Sessões (GA4)** – Sessões por canal de aquisição (Direct, Organic, Paid, Social etc.).  
-    **Eventos (GA4)** – Eventos como `form_submit`, cliques, WhatsApp etc.  
-
-    **Seguidores Instagram** – Evolução de `qtd_seguidores` ao longo do tempo.  
+    
+    **Receita Total** – Soma de todos os valores líquidos de atendimentos no período.
+    
+    **Quantidade de Atendimentos** – Número de atendimentos únicos (`id_venda`).
+    
+    **Clientes Únicos** – Número de clientes distintos atendidos.
+    
+    **Ticket Médio por Atendimento** – Receita Total ÷ Quantidade de Atendimentos.
+    
+    **NPS (Net Promoter Score)** – Indicador de satisfação calculado como: (% Promotores - % Detratores).
+    - **Promotores**: Notas 9-10
+    - **Neutros**: Notas 7-8
+    - **Detratores**: Notas 0-6
+    
+    **Serviços Presenciais Mais Vendidos** – Ranking de serviços presenciais por receita e quantidade.
+    
+    **Itens Ecommerce Mais Vendidos** – Ranking de serviços/pacotes vendidos no ecommerce (vouchers).
+    
+    **Distribuição de Receita** – Divisão da receita entre Vendas Locais, Voucher Online e Parcerias.
+    
+    **Pageviews (GA4)** – Visualizações de página no site / páginas-chave.
+    
+    **Sessões (GA4)** – Sessões por canal de aquisição (Direct, Organic, Paid, Social etc.).
+    
+    **Eventos (GA4)** – Eventos como `form_submit`, cliques, WhatsApp etc.
+    
+    **Seguidores Instagram** – Evolução de `qtd_seguidores` ao longo do tempo.
+    
     **Meta Ads** – Impressões, cliques, investimento, vendas e ROI das campanhas.
+    - **CTR (Click-Through Rate)**: Cliques ÷ Impressões × 100
+    - **CPC (Custo Por Clique)**: Investimento ÷ Cliques
+    - **ROI (Return on Investment)**: (Receita - Investimento) ÷ Investimento × 100
     """)
-
-st.caption("Buddha Spa Dashboard – Portal de Franqueados")
+    
+    st.caption("Buddha Spa Dashboard – Portal de Franqueados v2.0")
