@@ -764,6 +764,7 @@ with tab_visao:
     st.subheader("NPS - Net Promoter Score")
     with st.spinner("Carregando dados de NPS..."):
         try:
+            # Dados da unidade/unidades selecionadas
             if is_admin and unidades_selecionadas:
                 df_nps = load_nps_data(data_inicio, data_fim, unidade_filtro=None)
                 df_nps = df_nps[df_nps['unidade'].str.lower().isin(unidades_selecionadas)]
@@ -771,24 +772,82 @@ with tab_visao:
                 df_nps = load_nps_data(data_inicio, data_fim, unidade_filtro=None)
             else:
                 df_nps = load_nps_data(data_inicio, data_fim, unidade_filtro=unidade_usuario)
+            
+            # Dados de TODA a rede para comparação
+            df_nps_rede = load_nps_data(data_inicio, data_fim, unidade_filtro=None)
         except Exception as e:
             st.error(f"Erro ao carregar NPS: {e}")
             df_nps = pd.DataFrame()
+            df_nps_rede = pd.DataFrame()
     
     if not df_nps.empty:
+        # Métricas da unidade selecionada
         total_respostas = len(df_nps)
         promotores = int(df_nps['flag_promotor'].sum())
         neutros = int(df_nps['flag_neutro'].sum())
         detratores = int(df_nps['flag_detrator'].sum())
         
-        # Cálculo do NPS
+        # Cálculo do NPS da unidade
         nps_score = ((promotores - detratores) / total_respostas * 100) if total_respostas > 0 else 0
+        perc_promotores = (promotores / total_respostas * 100) if total_respostas > 0 else 0
+        perc_neutros = (neutros / total_respostas * 100) if total_respostas > 0 else 0
+        perc_detratores = (detratores / total_respostas * 100) if total_respostas > 0 else 0
+        
+        # Métricas da REDE TODA para comparação
+        if not df_nps_rede.empty:
+            total_respostas_rede = len(df_nps_rede)
+            promotores_rede = int(df_nps_rede['flag_promotor'].sum())
+            neutros_rede = int(df_nps_rede['flag_neutro'].sum())
+            detratores_rede = int(df_nps_rede['flag_detrator'].sum())
+            
+            nps_score_rede = ((promotores_rede - detratores_rede) / total_respostas_rede * 100) if total_respostas_rede > 0 else 0
+            perc_promotores_rede = (promotores_rede / total_respostas_rede * 100) if total_respostas_rede > 0 else 0
+            perc_neutros_rede = (neutros_rede / total_respostas_rede * 100) if total_respostas_rede > 0 else 0
+            perc_detratores_rede = (detratores_rede / total_respostas_rede * 100) if total_respostas_rede > 0 else 0
+            
+            # Calcular diferenças
+            diff_nps = nps_score - nps_score_rede
+            diff_promotores = perc_promotores - perc_promotores_rede
+            diff_neutros = perc_neutros - perc_neutros_rede
+            diff_detratores = perc_detratores - perc_detratores_rede
+        else:
+            diff_nps = 0
+            diff_promotores = 0
+            diff_neutros = 0
+            diff_detratores = 0
         
         col_nps1, col_nps2, col_nps3, col_nps4 = st.columns(4)
-        col_nps1.metric("NPS Score", formatar_percentual(nps_score))
-        col_nps2.metric("Promotores", formatar_numero(promotores), delta=formatar_percentual(promotores/total_respostas*100 if total_respostas > 0 else 0))
-        col_nps3.metric("Neutros", formatar_numero(neutros), delta=formatar_percentual(neutros/total_respostas*100 if total_respostas > 0 else 0))
-        col_nps4.metric("Detratores", formatar_numero(detratores), delta=formatar_percentual(detratores/total_respostas*100 if total_respostas > 0 else 0))
+        
+        # Formatando deltas com "vs. Média da Rede"
+        delta_nps_text = f"{diff_nps:+.2f}% vs. Média da Rede".replace('.', ',')
+        delta_prom_text = f"{diff_promotores:+.2f}% vs. Média da Rede".replace('.', ',')
+        delta_neut_text = f"{diff_neutros:+.2f}% vs. Média da Rede".replace('.', ',')
+        delta_detr_text = f"{diff_detratores:+.2f}% vs. Média da Rede".replace('.', ',')
+        
+        col_nps1.metric(
+            "NPS Score", 
+            formatar_percentual(nps_score),
+            delta=delta_nps_text,
+            delta_color="normal"
+        )
+        col_nps2.metric(
+            "Promotores", 
+            formatar_numero(promotores),
+            delta=delta_prom_text,
+            delta_color="normal"
+        )
+        col_nps3.metric(
+            "Neutros", 
+            formatar_numero(neutros),
+            delta=delta_neut_text,
+            delta_color="inverse"  # Neutros: menos é melhor
+        )
+        col_nps4.metric(
+            "Detratores", 
+            formatar_numero(detratores),
+            delta=delta_detr_text,
+            delta_color="inverse"  # Detratores: menos é melhor
+        )
         
         # Gráfico de pizza NPS
         df_nps_dist = pd.DataFrame({
