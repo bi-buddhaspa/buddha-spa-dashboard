@@ -939,6 +939,127 @@ with tab_atend:
                 use_container_width=True,
                 height=500
             )
+    
+    st.markdown("---")
+    
+    # HEATMAP 1: Atendimentos por Dia da Semana vs Unidade
+    st.subheader("Mapa de Atendimentos - Dia da Semana vs Unidade")
+    
+    # Adicionar dia da semana ao dataframe
+    df_heatmap = df_detalhado.copy()
+    df_heatmap['dia_semana'] = pd.to_datetime(df_heatmap[data_col]).dt.day_name()
+    
+    # Traduzir dias da semana para português
+    dias_semana_map = {
+        'Monday': 'Segunda-feira',
+        'Tuesday': 'Terça-feira',
+        'Wednesday': 'Quarta-feira',
+        'Thursday': 'Quinta-feira',
+        'Friday': 'Sexta-feira',
+        'Saturday': 'Sábado',
+        'Sunday': 'Domingo'
+    }
+    df_heatmap['dia_semana'] = df_heatmap['dia_semana'].map(dias_semana_map)
+    
+    # Agrupar por dia da semana e unidade
+    df_heatmap_unidade = (
+        df_heatmap.groupby(['dia_semana', 'unidade'])
+        .agg(
+            qtd_atendimentos=('id_venda', 'count'),
+            receita=(valor_col, 'sum')
+        )
+        .reset_index()
+    )
+    
+    # Criar matriz pivot
+    df_pivot_unidade = df_heatmap_unidade.pivot(
+        index='dia_semana',
+        columns='unidade',
+        values='qtd_atendimentos'
+    ).fillna(0)
+    
+    # Ordenar dias da semana
+    dias_ordem = ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado', 'Domingo']
+    df_pivot_unidade = df_pivot_unidade.reindex([d for d in dias_ordem if d in df_pivot_unidade.index])
+    
+    # Criar heatmap
+    fig_heat1 = go.Figure(data=go.Heatmap(
+        z=df_pivot_unidade.values,
+        x=df_pivot_unidade.columns,
+        y=df_pivot_unidade.index,
+        colorscale='Reds',
+        text=df_pivot_unidade.values,
+        texttemplate='%{text:.0f}',
+        textfont={"size": 10},
+        colorbar=dict(title="Atendimentos")
+    ))
+    
+    fig_heat1.update_layout(
+        xaxis_title="Unidade",
+        yaxis_title="Dia da Semana",
+        height=400,
+        plot_bgcolor='#FFFFFF',
+        paper_bgcolor='#F5F0E6'
+    )
+    
+    st.plotly_chart(fig_heat1, use_container_width=True)
+    
+    st.markdown("---")
+    
+    # HEATMAP 2: Atendimentos por Dia da Semana vs Tipo de Serviço
+    st.subheader("Mapa de Atendimentos - Dia da Semana vs Tipo de Serviço")
+    
+    if 'nome_servico_simplificado' in df_heatmap.columns:
+        # Pegar top 10 serviços
+        top_servicos = (
+            df_heatmap.groupby('nome_servico_simplificado')
+            .size()
+            .sort_values(ascending=False)
+            .head(10)
+            .index.tolist()
+        )
+        
+        # Filtrar apenas top serviços
+        df_heatmap_servico = df_heatmap[df_heatmap['nome_servico_simplificado'].isin(top_servicos)]
+        
+        # Agrupar por dia da semana e serviço
+        df_heatmap_servico_agg = (
+            df_heatmap_servico.groupby(['dia_semana', 'nome_servico_simplificado'])
+            .size()
+            .reset_index(name='qtd_atendimentos')
+        )
+        
+        # Criar matriz pivot
+        df_pivot_servico = df_heatmap_servico_agg.pivot(
+            index='dia_semana',
+            columns='nome_servico_simplificado',
+            values='qtd_atendimentos'
+        ).fillna(0)
+        
+        # Ordenar dias da semana
+        df_pivot_servico = df_pivot_servico.reindex([d for d in dias_ordem if d in df_pivot_servico.index])
+        
+        # Criar heatmap
+        fig_heat2 = go.Figure(data=go.Heatmap(
+            z=df_pivot_servico.values,
+            x=df_pivot_servico.columns,
+            y=df_pivot_servico.index,
+            colorscale='Blues',
+            text=df_pivot_servico.values,
+            texttemplate='%{text:.0f}',
+            textfont={"size": 10},
+            colorbar=dict(title="Atendimentos")
+        ))
+        
+        fig_heat2.update_layout(
+            xaxis_title="Tipo de Serviço",
+            yaxis_title="Dia da Semana",
+            height=400,
+            plot_bgcolor='#FFFFFF',
+            paper_bgcolor='#F5F0E6'
+        )
+        
+        st.plotly_chart(fig_heat2, use_container_width=True)
 
 # ---------------------- TAB: FINANCEIRO -------------------------
 with tab_fin:
