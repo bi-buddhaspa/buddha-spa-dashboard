@@ -560,8 +560,8 @@ if st.sidebar.button("Sair", use_container_width=True):
 st.sidebar.markdown("---")
 
 col1, col2 = st.sidebar.columns(2)
-data_inicio = col1.date_input("De:", value=datetime(2025, 9, 1))
-data_fim = col2.date_input("Até:", value=datetime(2025, 9, 30))
+data_inicio = col1.date_input("De:", value=datetime(2025, 9, 1), format="DD/MM/YYYY")
+data_fim = col2.date_input("Até:", value=datetime(2025, 9, 30), format="DD/MM/YYYY")
 
 if is_admin:
     try:
@@ -1807,6 +1807,20 @@ with tab_selfservice:
             "Cliente": "nome_cliente"
         }
         
+        # Mapeamento de nomes amigáveis
+        nomes_amigaveis = {
+            data_col: "Data",
+            "unidade": "Unidade",
+            "forma_pagamento": "Forma de Pagamento",
+            "nome_servico_simplificado": "Serviço",
+            "profissional": "Terapeuta",
+            "nome_cliente": "Cliente",
+            "receita_total": "Receita Total",
+            "qtd_atendimentos": "Quantidade de Atendimentos",
+            "ticket_medio": "Ticket Médio",
+            "clientes_unicos": "Clientes Únicos"
+        }
+        
         colunas_agrupamento = [dim_map[d] for d in dimensoes if dim_map[d] in df.columns]
         
         if colunas_agrupamento:
@@ -1826,15 +1840,46 @@ with tab_selfservice:
             if "Ticket Médio" in metricas and 'receita_total' in df_custom.columns and 'qtd_atendimentos' in df_custom.columns:
                 df_custom['ticket_medio'] = df_custom['receita_total'] / df_custom['qtd_atendimentos']
             
-            st.markdown("---")
-            st.dataframe(df_custom, use_container_width=True, height=400)
+            # Formatar para exibição
+            df_display = df_custom.copy()
             
-            csv = df_custom.to_csv(index=False).encode('utf-8')
+            # Formatar datas para dd/mm/yyyy
+            if data_col in df_display.columns:
+                df_display[data_col] = pd.to_datetime(df_display[data_col]).dt.strftime('%d/%m/%Y')
+            
+            # Formatar valores monetários
+            if 'receita_total' in df_display.columns:
+                df_display['receita_total'] = df_display['receita_total'].apply(formatar_moeda)
+            
+            if 'ticket_medio' in df_display.columns:
+                df_display['ticket_medio'] = df_display['ticket_medio'].apply(formatar_moeda)
+            
+            # Formatar números inteiros
+            if 'qtd_atendimentos' in df_display.columns:
+                df_display['qtd_atendimentos'] = df_display['qtd_atendimentos'].apply(formatar_numero)
+            
+            if 'clientes_unicos' in df_display.columns:
+                df_display['clientes_unicos'] = df_display['clientes_unicos'].apply(formatar_numero)
+            
+            # Renomear colunas para nomes amigáveis
+            df_display = df_display.rename(columns=nomes_amigaveis)
+            
+            st.markdown("---")
+            st.dataframe(df_display, use_container_width=True, height=400)
+            
+            # Para download, manter valores numéricos mas formatar datas
+            df_download = df_custom.copy()
+            if data_col in df_download.columns:
+                df_download[data_col] = pd.to_datetime(df_download[data_col]).dt.strftime('%d/%m/%Y')
+            df_download = df_download.rename(columns=nomes_amigaveis)
+            
+            csv = df_download.to_csv(index=False, encoding='utf-8-sig').encode('utf-8-sig')
             st.download_button(
-                "Download CSV",
+                "📥 Download CSV",
                 csv,
-                f"buddha_selfservice_{data_inicio}_{data_fim}.csv",
-                "text/csv"
+                f"buddha_selfservice_{data_inicio.strftime('%d%m%Y')}_{data_fim.strftime('%d%m%Y')}.csv",
+                "text/csv",
+                key='download-csv'
             )
 
 # ---------------------- TAB: AJUDA / GLOSSÁRIO -------------------------
