@@ -619,7 +619,11 @@ st.caption(f"Período: {data_inicio.strftime('%d/%m/%Y')} a {data_fim.strftime('
 receita_total = df[valor_col].sum()
 qtd_atendimentos = int(df['id_venda'].nunique())
 qtd_clientes = int(df['nome_cliente'].nunique()) if 'nome_cliente' in df.columns else 0
-ticket_medio = receita_total / qtd_atendimentos if qtd_atendimentos > 0 else 0
+
+# Calcular ticket médio apenas com atendimentos que geraram receita
+df_com_receita = df[df[valor_col] > 0]
+qtd_atendimentos_pagos = int(df_com_receita['id_venda'].nunique())
+ticket_medio = receita_total / qtd_atendimentos_pagos if qtd_atendimentos_pagos > 0 else 0
 
 colk1, colk2, colk3, colk4 = st.columns(4)
 colk1.metric("Receita Total", formatar_moeda(receita_total))
