@@ -377,7 +377,8 @@ def load_ecommerce_data(data_inicio, data_fim, unidades_filtro=None):
                 belle_ids.append(str(UNIDADE_BELLE_MAP[unidade.lower()]))
         
         if belle_ids:
-            filtro_unidade = f"AND CAST(u.ID AS STRING) IN ({','.join([f\"'{bid}'\" for bid in belle_ids])})"
+            belle_ids_str = ','.join([f"'{bid}'" for bid in belle_ids])
+            filtro_unidade = f"AND CAST(u.ID AS STRING) IN ({belle_ids_str})"
     
     query = f"""
     SELECT 
