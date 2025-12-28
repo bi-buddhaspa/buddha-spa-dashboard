@@ -368,17 +368,20 @@ def load_unidades():
 def load_ecommerce_data(data_inicio, data_fim, unidades_filtro=None):
     client = get_bigquery_client()
     
-    # Construir filtro de unidades usando id_belle
+    # Construir filtro de unidades usando AFILLIATION_NAME
     filtro_unidade = ""
     if unidades_filtro and len(unidades_filtro) > 0:
-        belle_ids = []
-        for unidade in unidades_filtro:
-            if unidade.lower() in UNIDADE_BELLE_MAP:
-                belle_ids.append(str(UNIDADE_BELLE_MAP[unidade.lower()]))
+        # Criar lista de possíveis nomes para comparação (com e sem "buddha spa -")
+        unidades_nomes = []
+        for u in unidades_filtro:
+            # Adicionar nome sem prefixo (title case)
+            nome_sem_prefixo = u.replace('buddha spa - ', '').title()
+            unidades_nomes.append(nome_sem_prefixo)
+            # Adicionar nome completo (title case)
+            unidades_nomes.append(u.title())
         
-        if belle_ids:
-            belle_ids_str = ','.join([f"'{bid}'" for bid in belle_ids])
-            filtro_unidade = f"AND CAST(u.ID AS STRING) IN ({belle_ids_str})"
+        unidades_str = ','.join([f"'{nome}'" for nome in unidades_nomes])
+        filtro_unidade = f"AND u.post_title IN ({unidades_str})"
     
     query = f"""
     SELECT 
@@ -407,9 +410,10 @@ def load_ecommerce_data(data_inicio, data_fim, unidades_filtro=None):
          WHERE o.ID = CAST(CAST(s.ORDER_ID AS FLOAT64) AS INT64)) AS Customer_State
     FROM `buddha-bigdata.raw.ecommerce_raw` s
     LEFT JOIN `buddha-bigdata.raw.wp_posts` u ON u.post_type = 'unidade' AND u.ID = CAST(CAST(s.AFILLIATION_ID AS FLOAT64) AS INT64)
-    WHERE s.CREATED_DATE >= TIMESTAMP('{data_inicio} 00:00:00', 'America/Sao_Paulo')
-        AND s.CREATED_DATE <= TIMESTAMP('{data_fim} 23:59:59', 'America/Sao_Paulo')
-        AND s.STATUS IN ('1','2','3')
+    WHERE s.USED_DATE >= TIMESTAMP('{data_inicio} 00:00:00', 'America/Sao_Paulo')
+        AND s.USED_DATE <= TIMESTAMP('{data_fim} 23:59:59', 'America/Sao_Paulo')
+        AND s.STATUS IN ('2','3')
+        AND s.USED_DATE IS NOT NULL
         {filtro_unidade}
     """
     return client.query(query).to_dataframe()
@@ -1103,13 +1107,13 @@ with tab_fin:
     # Cards de resumo
     cold1, cold2, cold3, cold4 = st.columns(4)
     cold1.metric("Vendas Locais", formatar_moeda(receita_vendas_locais))
-    cold2.metric("Voucher Online", formatar_moeda(receita_voucher))
+    cold2.metric("Vouchers Utilizados", formatar_moeda(receita_voucher))
     cold3.metric("Faturamento Total", formatar_moeda(faturamento_total))
     cold4.metric("Parcerias", formatar_moeda(receita_parcerias))
     
     # Pizza chart de distribuição
     df_dist = pd.DataFrame({
-        'Canal': ['Vendas Locais', 'Voucher Online', 'Parcerias'],
+        'Canal': ['Vendas Locais', 'Vouchers Utilizados', 'Parcerias'],
         'Receita': [receita_vendas_locais, receita_voucher, receita_parcerias]
     })
     df_dist = df_dist[df_dist['Receita'] > 0]
@@ -1199,7 +1203,7 @@ with tab_fin:
     
     st.markdown("---")
     
-    st.subheader("Itens Ecommerce Mais Vendidos (Financeiro)")
+    st.subheader("Vouchers Mais Utilizados na Unidade")
     
     if not df_ecom_dist.empty:
         if 'PACKAGE_NAME' in df_ecom_dist.columns:
@@ -1258,9 +1262,9 @@ with tab_fin:
 # ---------------------- TAB: MARKETING & ECOMMERCE -------------------------
 with tab_mkt:
     # BLOCO 1 – ECOMMERCE
-    st.subheader("Ecommerce – Vendas de Vouchers")
+    st.subheader("Ecommerce – Vouchers Utilizados na Unidade")
     
-    with st.spinner("Carregando dados de ecommerce..."):
+    with st.spinner("Carregando dados de vouchers utilizados..."):
         try:
             # Passar unidades selecionadas para filtrar ecommerce
             unidades_para_filtro = unidades_selecionadas if is_admin else [unidade_usuario.lower()]
@@ -1270,7 +1274,7 @@ with tab_mkt:
             df_ecom = pd.DataFrame()
     
     if df_ecom.empty:
-        st.warning("Sem dados de ecommerce para o período selecionado.")
+        st.warning("Sem dados de vouchers utilizados para o período selecionado.")
     else:
         df_ecom['PRICE_GROSS'] = pd.to_numeric(df_ecom['PRICE_GROSS'], errors='coerce')
         df_ecom['PRICE_NET'] = pd.to_numeric(df_ecom['PRICE_NET'], errors='coerce')
@@ -1289,12 +1293,12 @@ with tab_mkt:
         receita_liquida_e = df_ecom['PRICE_NET'].fillna(0).sum()
         ticket_medio_e = receita_liquida_e / total_pedidos if total_pedidos > 0 else 0
         
-        colm1.metric("Pedidos Ecommerce", formatar_numero(total_pedidos))
-        colm2.metric("Vouchers Vendidos", formatar_numero(total_vouchers))
-        colm3.metric("Receita Líquida Ecommerce", formatar_moeda(receita_liquida_e))
-        colm4.metric("Ticket Médio Ecommerce", formatar_moeda(ticket_medio_e))
+        colm1.metric("Pedidos Utilizados", formatar_numero(total_pedidos))
+        colm2.metric("Vouchers Utilizados", formatar_numero(total_vouchers))
+        colm3.metric("Receita Vouchers Utilizados", formatar_moeda(receita_liquida_e))
+        colm4.metric("Ticket Médio por Pedido", formatar_moeda(ticket_medio_e))
         
-        st.markdown("### Top 10 Serviços / Pacotes Vendidos (Ecommerce)")
+        st.markdown("### Top 10 Serviços / Pacotes Utilizados (Vouchers)")
         
         df_serv = (
             df_ecom
@@ -1904,9 +1908,9 @@ with tab_gloss:
     
     **Serviços Presenciais Mais Vendidos** – Ranking de serviços presenciais por receita e quantidade.
     
-    **Itens Ecommerce Mais Vendidos** – Ranking de serviços/pacotes vendidos no ecommerce (vouchers).
+    **Vouchers Utilizados** – Vouchers do ecommerce que foram efetivamente utilizados na unidade (filtrados por `USED_DATE` e `AFILLIATION_NAME`).
     
-    **Distribuição de Receita** – Divisão da receita entre Vendas Locais, Voucher Online e Parcerias.
+    **Distribuição de Receita** – Divisão da receita entre Vendas Locais, Vouchers Utilizados e Parcerias.
     
     **Pageviews (GA4)** – Visualizações de página no site / páginas-chave.
     
@@ -1920,6 +1924,12 @@ with tab_gloss:
     - **CTR (Click-Through Rate)**: Cliques ÷ Impressões × 100
     - **CPC (Custo Por Clique)**: Investimento ÷ Cliques
     - **ROI (Return on Investment)**: (Receita - Investimento) ÷ Investimento × 100
+    
+    ### 🎫 Sobre Vouchers
+    
+    **Importante:** Os vouchers são vendidos no ecommerce geral (site Buddha Spa) e podem ser utilizados em qualquer unidade. 
+    
+    Neste dashboard, você vê apenas os **vouchers que foram utilizados na sua unidade**, não os vendidos. A data considerada é a `USED_DATE` (quando o cliente usou o voucher), não a `CREATED_DATE` (quando comprou).
     """)
     
     st.caption("Buddha Spa Dashboard – Portal de Franqueados v2.0")
