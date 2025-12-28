@@ -122,9 +122,15 @@ st.markdown("""
         .stMetric label {
             color: #8B0000 !important;
             font-weight: bold;
+            font-size: 0.9rem;
         }
         .stMetric [data-testid="stMetricValue"] {
             color: #2C1810;
+            font-size: 1.5rem !important;
+            font-weight: 600;
+        }
+        .stMetric [data-testid="stMetricDelta"] {
+            font-size: 0.8rem;
         }
     </style>
 """, unsafe_allow_html=True)
