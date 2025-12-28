@@ -16,6 +16,150 @@ except:
         pass
 
 # -----------------------------------------------------------------------------
+# MAPEAMENTO DE UNIDADES - BELLE ID
+# -----------------------------------------------------------------------------
+UNIDADE_BELLE_MAP = {
+    'buddha spa - higienópolis': 708,
+    'buddha spa - jardins': 751,
+    'buddha spa - brooklin': 706,
+    'buddha spa - ibirapuera': 207,
+    'buddha spa - anália franco': 206,
+    'buddha spa - shopping piracicaba': 210,
+    'buddha spa - seridó': 758,
+    'buddha spa - reebok cidade jardim': 754,
+    'buddha spa - reebok vila olímpia': 756,
+    'buddha spa - morumbi': 563365,
+    'buddha spa - villa lobos': 280739,
+    'buddha spa - alphaville flex': 1027,
+    'buddha spa - pestana curitiba': 284130,
+    'buddha spa - vitória': 284132,
+    'buddha spa - mooca plaza shopping': 299557,
+    'buddha spa - moema índios': 344370,
+    'buddha spa - gran estanplaza berrini': 299559,
+    'buddha spa - perdizes': 753,
+    'buddha spa - quiosque pátio paulista': 411631,
+    'buddha spa - indaiatuba': 432113,
+    'buddha spa - club athletico paulistano': 433780,
+    'buddha spa - vila leopoldina': 439074,
+    'buddha spa - vogue square - rj': 436898,
+    'buddha spa - são luís': 449096,
+    'buddha spa - granja viana': 462897,
+    'buddha spa - sorocaba': 470368,
+    'buddha spa - clube hebraica': 465469,
+    'buddha spa - blue tree faria lima': 480436,
+    'buddha spa - são josé dos campos': 463324,
+    'buddha spa - são caetano do sul': 482202,
+    'buddha spa - santos aparecida': 482575,
+    'buddha spa - ribeirão preto jardim botânico': 495713,
+    'buddha spa - ipanema': 761,
+    'buddha spa - barra shopping': 514956,
+    'buddha spa - chácara klabin': 491304,
+    'buddha spa - jardim pamplona shopping': 480636,
+    'buddha spa - uberlândia shopping': 505654,
+    'buddha spa - guestier': 527972,
+    'buddha spa - chácara santo antônio': 547841,
+    'buddha spa - vila são francisco': 552633,
+    'buddha spa - curitiba batel': 554624,
+    'buddha spa - shopping ibirapuera': 571958,
+    'buddha spa - mogi das cruzes': 589126,
+    'buddha spa - shopping anália franco': 591248,
+    'buddha spa - blue tree thermas lins': 566497,
+    'buddha spa - jardim marajoara': 591157,
+    'buddha spa - moema pássaros': 591120,
+    'buddha spa - ribeirão preto shopping santa úrsula': 591166,
+    'buddha spa - ribeirão preto ribeirão shopping': 591244,
+    'buddha spa - parque aclimação': 612165,
+    'buddha spa - alto de santana': 615139,
+    'buddha spa - botafogo praia shopping': 630887,
+    'buddha spa - campinas cambuí': 622419,
+    'buddha spa - bh shopping': 622474,
+    'buddha spa - guarulhos bosque maia': 646089,
+    'buddha spa - santos gonzaga': 627352,
+    'buddha spa - rio preto redentora': 643686,
+    'buddha spa - aquarius open mall': 648452,
+    'buddha spa - litoral plaza': 661644,
+    'buddha spa - campinas alphaville': 665798,
+    'buddha spa - av morumbi - brooklin': 671311,
+    'buddha spa - vila mascote': 671242,
+    'buddha spa - alto da mooca': 706524,
+    'buddha spa - braz leme': 706526,
+    'buddha spa - ipiranga': 706528,
+    'buddha spa - vinhedo': 713612,
+    'buddha spa - shopping da gavea': 719958,
+    'buddha spa - shopping trimais': 726764,
+    'buddha spa - balneário shopping': 722151,
+    'buddha spa - curitiba cabral': 722055,
+    'buddha spa - piracicaba carlos botelho': 738437,
+    'buddha spa - osasco bela vista': 738442,
+    'buddha spa - tatuapé piqueri': 748591,
+    'buddha spa - vila zelina': 749394,
+    'buddha spa - portal do morumbi': 748603,
+    'buddha spa - alto da boa vista': 746572,
+    'buddha spa - praça panamericana': 765536,
+    'buddha spa - jardim botânico - rj': 771858,
+    'buddha spa - garten joinville': 722135,
+    'buddha spa - the senses': 741733,
+    'buddha spa - faria lima': 785999,
+    'buddha spa - real parque': 767008,
+    'buddha spa - hotel pullman vila olímpia': 795372,
+    'buddha spa - belém': 766990,
+    'buddha spa - recife': 795432,
+    'buddha spa - belenzinho': 795397,
+    'buddha spa - golden square': 794974,
+    'buddha spa - butantã': 801471,
+    'buddha spa - shopping jockey': 808781,
+    'buddha spa - vila romana': 822734,
+    'buddha spa - riviera de são lourenço': 837255,
+    'buddha spa - tatuape gomes cardim': 857895,
+    'buddha spa - planalto paulista': 862351,
+    'buddha spa - teresina': 857883,
+    'buddha spa - jardim paulista': 828253,
+    'buddha spa - santo andré jardim bela vista': 865841,
+    'buddha spa - shopping parque da cidade': 870951,
+    'buddha spa - shopping jardim sul': 859641,
+    'buddha spa - tamboré': 869747,
+    'buddha spa - shopping vila olímpia': 870977,
+    'buddha spa - laranjeiras': 828254,
+    'buddha spa - shopping riomar aracaju': 874400,
+    'buddha spa - consolação': 883751,
+    'buddha spa - niterói icaraí': 891918,
+    'buddha spa - jacarepagua': 883747,
+    'buddha spa - itu': 882774,
+    'buddha spa - recife espinheiro': 883744,
+    'buddha spa - paraiso': 878903,
+    'buddha spa - pinheiros joão moura': 916457,
+    'buddha spa - vila olímpia': 759,
+    'buddha spa - itaim bibi': 749,
+    'buddha spa - funchal': 286078,
+    'buddha spa - aclimação': 273819,
+    'buddha spa - barra cittá américa': 763,
+    'buddha spa - shopping rio sul': 762,
+    'buddha spa - blue tree alphaville': 342385,
+    'buddha spa - pátio paulista': 409747,
+    'buddha spa - pestana são paulo': 265425,
+    'buddha spa - santana parque shopping': 419107,
+    'buddha spa - vila clementino': 427122,
+    'buddha spa - jardim europa': 433779,
+    'buddha spa - vila madalena': 449151,
+    'buddha spa - campo belo': 452116,
+    'buddha spa - alto da lapa': 483147,
+    'buddha spa - panamby': 474445,
+    'buddha spa - ecofit cerro corá': 507616,
+    'buddha spa - alto de pinheiros': 516762,
+    'buddha spa - brooklin nebraska': 526203,
+    'buddha spa - mooca': 530997,
+    'buddha spa - pompéia': 510948,
+    'buddha spa - goiânia oeste': 591096,
+    'buddha spa - vila nova conceição': 622423,
+    'buddha spa - bourbon shopping': 627353,
+    'buddha spa - morumbi town': 631395,
+    'buddha spa - vila mariana': 639559,
+    'buddha spa - jundiaí chácara urbana': 671256,
+    'buddha spa - santo andré jardim': 646821,
+    'buddha spa - maringá tiradentes': 706527
+}
+
+# -----------------------------------------------------------------------------
 # FUNÇÕES DE FORMATAÇÃO BRASILEIRA
 # -----------------------------------------------------------------------------
 def formatar_moeda(valor):
@@ -221,8 +365,20 @@ def load_unidades():
     return client.query(query).to_dataframe()['unidade'].tolist()
 
 @st.cache_data(ttl=3600)
-def load_ecommerce_data(data_inicio, data_fim):
+def load_ecommerce_data(data_inicio, data_fim, unidades_filtro=None):
     client = get_bigquery_client()
+    
+    # Construir filtro de unidades usando id_belle
+    filtro_unidade = ""
+    if unidades_filtro and len(unidades_filtro) > 0:
+        belle_ids = []
+        for unidade in unidades_filtro:
+            if unidade.lower() in UNIDADE_BELLE_MAP:
+                belle_ids.append(str(UNIDADE_BELLE_MAP[unidade.lower()]))
+        
+        if belle_ids:
+            filtro_unidade = f"AND CAST(u.ID AS STRING) IN ({','.join([f\"'{bid}'\" for bid in belle_ids])})"
+    
     query = f"""
     SELECT 
         s.ID,
@@ -239,7 +395,7 @@ def load_ecommerce_data(data_inicio, data_fim):
         s.KEY,
         s.ORDER_ID,
         (SELECT p.NAME FROM `buddha-bigdata.raw.packages_raw` p WHERE p.ID = s.PACKAGE_ID) AS PACKAGE_NAME,
-        (SELECT u.post_title FROM `buddha-bigdata.raw.wp_posts` u WHERE u.post_type = 'unidade' AND u.ID = CAST(CAST(s.AFILLIATION_ID AS FLOAT64) AS INT64)) AS AFILLIATION_NAME,
+        u.post_title AS AFILLIATION_NAME,
         (SELECT MAX(CASE WHEN pm.meta_key = '_billing_city' THEN pm.meta_value END) 
          FROM `buddha-bigdata.raw.wp_posts` o
          LEFT JOIN `buddha-bigdata.raw.wp_postmeta` pm ON o.ID = pm.post_id
@@ -249,9 +405,11 @@ def load_ecommerce_data(data_inicio, data_fim):
          LEFT JOIN `buddha-bigdata.raw.wp_postmeta` pm ON o.ID = pm.post_id
          WHERE o.ID = CAST(CAST(s.ORDER_ID AS FLOAT64) AS INT64)) AS Customer_State
     FROM `buddha-bigdata.raw.ecommerce_raw` s
+    LEFT JOIN `buddha-bigdata.raw.wp_posts` u ON u.post_type = 'unidade' AND u.ID = CAST(CAST(s.AFILLIATION_ID AS FLOAT64) AS INT64)
     WHERE s.CREATED_DATE >= TIMESTAMP('{data_inicio} 00:00:00', 'America/Sao_Paulo')
         AND s.CREATED_DATE <= TIMESTAMP('{data_fim} 23:59:59', 'America/Sao_Paulo')
         AND s.STATUS IN ('1','2','3')
+        {filtro_unidade}
     """
     return client.query(query).to_dataframe()
 
@@ -463,6 +621,14 @@ colk2.metric("Quantidade de Atendimentos", formatar_numero(qtd_atendimentos))
 colk3.metric("Clientes Únicos", formatar_numero(qtd_clientes))
 colk4.metric("Ticket Médio por Atendimento", formatar_moeda(ticket_medio))
 
+# Mostrar unidades selecionadas
+if is_admin and unidades_selecionadas:
+    st.markdown("---")
+    st.info(f"**📍 Unidades selecionadas:** {', '.join([u.title() for u in unidades_selecionadas])}")
+elif not is_admin:
+    st.markdown("---")
+    st.info(f"**📍 Visualizando unidade:** {unidade_usuario.title()}")
+
 st.divider()
 
 # -----------------------------------------------------------------------------
@@ -476,9 +642,16 @@ tab_visao, tab_atend, tab_fin, tab_mkt, tab_selfservice, tab_gloss = st.tabs(
 with tab_visao:
     st.subheader("Evolução da Receita")
     
+    # Carregar dados de todas as unidades para calcular média da rede
+    with st.spinner("Calculando média da rede..."):
+        try:
+            df_todas_unidades = load_atendimentos(data_inicio, data_fim, unidade_filtro=None)
+        except:
+            df_todas_unidades = df.copy()
+    
     # Verificar se há múltiplas unidades selecionadas
     if is_admin and unidades_selecionadas and len(unidades_selecionadas) > 1:
-        # Gráfico com múltiplas linhas (uma por unidade)
+        # Gráfico com múltiplas linhas (uma por unidade) + média da rede
         df_evolucao = (
             df.groupby([data_col, 'unidade'])[valor_col]
             .sum()
@@ -486,14 +659,36 @@ with tab_visao:
             .sort_values(data_col)
         )
         
+        # Calcular média da rede por data
+        df_media_rede = (
+            df_todas_unidades.groupby([data_col, 'unidade'])[valor_col]
+            .sum()
+            .reset_index()
+            .groupby(data_col)[valor_col]
+            .mean()
+            .reset_index()
+        )
+        df_media_rede['unidade'] = 'Média da Rede'
+        
+        # Combinar dados
+        df_evolucao_completo = pd.concat([df_evolucao, df_media_rede], ignore_index=True)
+        
         fig = px.line(
-            df_evolucao, 
+            df_evolucao_completo, 
             x=data_col, 
             y=valor_col, 
             color='unidade',
             markers=True,
             labels={valor_col: 'Receita (R$)', data_col: 'Data', 'unidade': 'Unidade'}
         )
+        
+        # Destacar linha de média com tracejado
+        for trace in fig.data:
+            if trace.name == 'Média da Rede':
+                trace.line.dash = 'dash'
+                trace.line.width = 3
+                trace.line.color = '#FF6B6B'
+        
         fig.update_layout(
             xaxis_title="Data",
             yaxis_title="Receita (R$)",
@@ -503,22 +698,54 @@ with tab_visao:
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
         )
     else:
-        # Gráfico com linha única
+        # Gráfico com linha única + média da rede
         df_evolucao = (
             df.groupby(data_col)[valor_col]
             .sum()
             .reset_index()
             .sort_values(data_col)
         )
+        df_evolucao['unidade'] = unidade_usuario.title() if not is_admin else 'Unidade Selecionada'
         
-        fig = px.line(df_evolucao, x=data_col, y=valor_col, markers=True)
-        fig.update_traces(line_color='#8B0000', marker=dict(color='#8B0000'))
+        # Calcular média da rede por data
+        df_media_rede = (
+            df_todas_unidades.groupby([data_col, 'unidade'])[valor_col]
+            .sum()
+            .reset_index()
+            .groupby(data_col)[valor_col]
+            .mean()
+            .reset_index()
+        )
+        df_media_rede['unidade'] = 'Média da Rede'
+        
+        # Combinar dados
+        df_evolucao_completo = pd.concat([df_evolucao, df_media_rede], ignore_index=True)
+        
+        fig = px.line(
+            df_evolucao_completo,
+            x=data_col,
+            y=valor_col,
+            color='unidade',
+            markers=True,
+            labels={valor_col: 'Receita (R$)', data_col: 'Data', 'unidade': 'Unidade'}
+        )
+        
+        # Estilizar linhas
+        for trace in fig.data:
+            if trace.name == 'Média da Rede':
+                trace.line.dash = 'dash'
+                trace.line.width = 3
+                trace.line.color = '#FF6B6B'
+            else:
+                trace.line.color = '#8B0000'
+        
         fig.update_layout(
             xaxis_title="Data",
             yaxis_title="Receita (R$)",
             height=400,
             plot_bgcolor='#FFFFFF',
-            paper_bgcolor='#F5F0E6'
+            paper_bgcolor='#F5F0E6',
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
         )
     
     # Formatar eixo Y com padrão brasileiro
@@ -728,7 +955,9 @@ with tab_fin:
     
     with st.spinner("Carregando dados de ecommerce..."):
         try:
-            df_ecom_dist = load_ecommerce_data(data_inicio, data_fim)
+            # Passar unidades selecionadas para filtrar ecommerce
+            unidades_para_filtro = unidades_selecionadas if is_admin else [unidade_usuario.lower()]
+            df_ecom_dist = load_ecommerce_data(data_inicio, data_fim, unidades_filtro=unidades_para_filtro)
         except Exception as e:
             st.error(f"Erro ao carregar ecommerce: {e}")
             df_ecom_dist = pd.DataFrame()
@@ -911,7 +1140,9 @@ with tab_mkt:
     
     with st.spinner("Carregando dados de ecommerce..."):
         try:
-            df_ecom = load_ecommerce_data(data_inicio, data_fim)
+            # Passar unidades selecionadas para filtrar ecommerce
+            unidades_para_filtro = unidades_selecionadas if is_admin else [unidade_usuario.lower()]
+            df_ecom = load_ecommerce_data(data_inicio, data_fim, unidades_filtro=unidades_para_filtro)
         except Exception as e:
             st.error(f"Erro ao carregar dados de ecommerce: {e}")
             df_ecom = pd.DataFrame()
