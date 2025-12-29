@@ -716,7 +716,12 @@ with tab_visao:
             height=400,
             plot_bgcolor='#FFFFFF',
             paper_bgcolor='#F5F0E6',
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+            xaxis=dict(
+                tickformat='%d/%m',
+                tickmode='auto',
+                nticks=15
+            )
         )
     else:
         # Gráfico com linha única + média da rede
@@ -766,7 +771,12 @@ with tab_visao:
             height=400,
             plot_bgcolor='#FFFFFF',
             paper_bgcolor='#F5F0E6',
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+            xaxis=dict(
+                tickformat='%d/%m',
+                tickmode='auto',
+                nticks=15
+            )
         )
     
     # Formatar eixo Y com padrão brasileiro
@@ -846,12 +856,12 @@ with tab_visao:
         text='receita_fmt_label',
         labels={valor_col: 'Receita (R$)', 'unidade': 'Unidade'}
     )
-    fig_u.update_traces(marker_color='#8B0000', textposition='outside')
+    fig_u.update_traces(marker_color='#8B0000', textposition='inside', textfont=dict(color='white', size=11))
     fig_u.update_layout(
         plot_bgcolor='#FFFFFF',
         paper_bgcolor='#F5F0E6',
         height=450,
-        yaxis={'categoryorder': 'total ascending'}
+        yaxis={'categoryorder': 'total descending'}
     )
     fig_u.update_xaxes(tickformat=",.2f")
     st.plotly_chart(fig_u, use_container_width=True)
@@ -893,12 +903,12 @@ with tab_atend:
                     'unidade': 'Unidade'
                 }
             )
-            fig_t.update_traces(textposition='outside')
+            fig_t.update_traces(textposition='inside', textfont=dict(color='white', size=11))
             fig_t.update_layout(
                 plot_bgcolor='#FFFFFF',
                 paper_bgcolor='#F5F0E6',
                 height=500,
-                yaxis={'categoryorder': 'total ascending'}  # Ordena do menor para maior no eixo Y (maior fica em cima)
+                yaxis={'categoryorder': 'total descending'}
             )
             fig_t.update_xaxes(tickformat=",.2f")
             st.plotly_chart(fig_t, use_container_width=True)
@@ -944,7 +954,7 @@ with tab_atend:
                 text=df_servicos['perc_receita'].map(lambda x: f"{x*100:.1f}%"),
                 labels={'receita': 'Receita (R$)', 'nome_servico_simplificado': 'Serviço'}
             )
-            fig_s.update_traces(marker_color='#8B0000', textposition='outside')
+            fig_s.update_traces(marker_color='#8B0000', textposition='inside', textfont=dict(color='white', size=11))
             fig_s.update_layout(
                 plot_bgcolor='#FFFFFF',
                 paper_bgcolor='#F5F0E6',
@@ -1174,12 +1184,12 @@ with tab_fin:
         text='receita_fmt_label',
         labels={'receita': 'Receita (R$)', 'unidade': 'Unidade'}
     )
-    fig_fu.update_traces(marker_color='#A52A2A', textposition='outside')
+    fig_fu.update_traces(marker_color='#A52A2A', textposition='inside', textfont=dict(color='white', size=11))
     fig_fu.update_layout(
         plot_bgcolor='#FFFFFF',
         paper_bgcolor='#F5F0E6',
         height=450,
-        yaxis={'categoryorder': 'total ascending'}
+        yaxis={'categoryorder': 'total descending'}
     )
     fig_fu.update_xaxes(tickformat=",.2f")
     st.plotly_chart(fig_fu, use_container_width=True)
@@ -1210,12 +1220,12 @@ with tab_fin:
                 text='receita_fmt_label',
                 labels={'receita': 'Receita (R$)', 'nome_servico_simplificado': 'Serviço'}
             )
-            fig_sf.update_traces(marker_color='#8B0000', textposition='outside')
+            fig_sf.update_traces(marker_color='#8B0000', textposition='inside', textfont=dict(color='white', size=11))
             fig_sf.update_layout(
                 plot_bgcolor='#FFFFFF',
                 paper_bgcolor='#F5F0E6',
                 height=400,
-                yaxis={'categoryorder': 'total ascending'}
+                yaxis={'categoryorder': 'total descending'}
             )
             fig_sf.update_xaxes(tickformat=",.2f")
             st.plotly_chart(fig_sf, use_container_width=True)
@@ -1270,12 +1280,12 @@ with tab_fin:
                 text='receita_fmt_label',
                 labels={'receita_liquida': 'Receita Líquida (R$)', 'PACKAGE_NAME': 'Serviço / Pacote'}
             )
-            fig_ef.update_traces(marker_color='#A52A2A', textposition='outside')
+            fig_ef.update_traces(marker_color='#A52A2A', textposition='inside', textfont=dict(color='white', size=11))
             fig_ef.update_layout(
                 plot_bgcolor='#FFFFFF',
                 paper_bgcolor='#F5F0E6',
                 height=400,
-                yaxis={'categoryorder': 'total ascending'}
+                yaxis={'categoryorder': 'total descending'}
             )
             fig_ef.update_xaxes(tickformat=",.2f")
             st.plotly_chart(fig_ef, use_container_width=True)
@@ -1363,12 +1373,12 @@ with tab_mkt:
                 labels={'qtde_vouchers': 'Qtd Vouchers', 'PACKAGE_NAME': 'Serviço / Pacote'},
                 text='qtde_fmt_label'
             )
-            fig_serv.update_traces(marker_color='#8B0000', textposition='outside')
+            fig_serv.update_traces(marker_color='#8B0000', textposition='inside', textfont=dict(color='white', size=11))
             fig_serv.update_layout(
                 plot_bgcolor='#FFFFFF',
                 paper_bgcolor='#F5F0E6',
                 height=450,
-                yaxis={'categoryorder': 'total ascending'}
+                yaxis={'categoryorder': 'total descending'}
             )
             st.plotly_chart(fig_serv, use_container_width=True)
         
@@ -1414,12 +1424,12 @@ with tab_mkt:
                 text='receita_fmt_label',
                 labels={'receita': 'Receita (R$)', 'Customer_State': 'Estado'}
             )
-            fig_geo.update_traces(marker_color='#8B0000', textposition='outside')
+            fig_geo.update_traces(marker_color='#8B0000', textposition='inside', textfont=dict(color='white', size=11))
             fig_geo.update_layout(
                 plot_bgcolor='#FFFFFF',
                 paper_bgcolor='#F5F0E6',
                 height=400,
-                yaxis={'categoryorder': 'total ascending'}
+                yaxis={'categoryorder': 'total descending'}
             )
             fig_geo.update_xaxes(tickformat=",.2f")
             st.plotly_chart(fig_geo, use_container_width=True)
@@ -1472,12 +1482,12 @@ with tab_mkt:
             text='pageviews_fmt_label',
             labels={'page_views': 'Pageviews', 'tipo_pagina': 'Tipo de Página'}
         )
-        fig_pag.update_traces(marker_color='#8B0000', textposition='outside')
+        fig_pag.update_traces(marker_color='#8B0000', textposition='inside', textfont=dict(color='white', size=11))
         fig_pag.update_layout(
             plot_bgcolor='#FFFFFF',
             paper_bgcolor='#F5F0E6',
             height=400,
-            yaxis={'categoryorder': 'total ascending'}
+            yaxis={'categoryorder': 'total descending'}
         )
         st.plotly_chart(fig_pag, use_container_width=True)
     
@@ -1524,12 +1534,12 @@ with tab_mkt:
             text='sessoes_fmt_label',
             labels={'canal': 'Canal', 'sessoes': 'Sessões'}
         )
-        fig_can.update_traces(marker_color='#A52A2A', textposition='outside')
+        fig_can.update_traces(marker_color='#A52A2A', textposition='inside', textfont=dict(color='white', size=11))
         fig_can.update_layout(
             plot_bgcolor='#FFFFFF',
             paper_bgcolor='#F5F0E6',
             height=400,
-            yaxis={'categoryorder': 'total ascending'}
+            yaxis={'categoryorder': 'total descending'}
         )
         st.plotly_chart(fig_can, use_container_width=True)
         
@@ -1592,12 +1602,12 @@ with tab_mkt:
                 text='eventos_fmt_label',
                 labels={'total_eventos': 'Total de Eventos', 'evento': 'Evento'}
             )
-            fig_ev.update_traces(marker_color='#8B0000', textposition='outside')
+            fig_ev.update_traces(marker_color='#8B0000', textposition='inside', textfont=dict(color='white', size=11))
             fig_ev.update_layout(
                 plot_bgcolor='#FFFFFF',
                 paper_bgcolor='#F5F0E6',
                 height=400,
-                yaxis={'categoryorder': 'total ascending'}
+                yaxis={'categoryorder': 'total descending'}
             )
             st.plotly_chart(fig_ev, use_container_width=True)
     
@@ -1654,12 +1664,12 @@ with tab_mkt:
                 labels={'engajamento': 'Engajamento (Curtidas + Comentários)', 'legenda_curta': 'Post'},
                 text='engajamento_fmt_label'
             )
-            fig_ig.update_traces(marker_color='#8B0000', textposition='outside')
+            fig_ig.update_traces(marker_color='#8B0000', textposition='inside', textfont=dict(color='white', size=11))
             fig_ig.update_layout(
                 plot_bgcolor='#FFFFFF',
                 paper_bgcolor='#F5F0E6',
                 height=500,
-                yaxis={'categoryorder': 'total ascending'}
+                yaxis={'categoryorder': 'total descending'}
             )
             st.plotly_chart(fig_ig, use_container_width=True)
         
@@ -1794,12 +1804,12 @@ with tab_mkt:
             text='investido_fmt_label',
             labels={'investido': 'Investimento (R$)', 'nome': 'Campanha'}
         )
-        fig_meta.update_traces(marker_color='#8B0000', textposition='outside')
+        fig_meta.update_traces(marker_color='#8B0000', textposition='inside', textfont=dict(color='white', size=11))
         fig_meta.update_layout(
             plot_bgcolor='#FFFFFF',
             paper_bgcolor='#F5F0E6',
             height=450,
-            yaxis={'categoryorder': 'total ascending'}
+            yaxis={'categoryorder': 'total descending'}
         )
         fig_meta.update_xaxes(tickformat=",.2f")
         st.plotly_chart(fig_meta, use_container_width=True)
