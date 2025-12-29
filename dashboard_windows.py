@@ -550,29 +550,21 @@ with tab_visao:
         # Combinar dados
         df_evolucao_completo = pd.concat([df_evolucao, df_media_rede], ignore_index=True)
         
-        # Paleta de cores Buddha Spa
-        cores_buddha = ['#8B0000', '#A52A2A', '#CD5C5C', '#D2691E', '#B22222', '#C04000']
-        
         fig = px.line(
             df_evolucao_completo, 
             x=data_col, 
             y=valor_col, 
             color='unidade',
             markers=True,
-            labels={valor_col: 'Receita (R$)', data_col: 'Data', 'unidade': 'Unidade'},
-            color_discrete_sequence=cores_buddha
+            labels={valor_col: 'Receita (R$)', data_col: 'Data', 'unidade': 'Unidade'}
         )
         
-        # Estilizar linhas - mais grossas e marcadores maiores
-        for i, trace in enumerate(fig.data):
+        # Destacar linha de média com tracejado
+        for trace in fig.data:
             if trace.name == 'Média da Rede':
                 trace.line.dash = 'dash'
-                trace.line.width = 4
+                trace.line.width = 3
                 trace.line.color = '#FF6B6B'
-                trace.marker.size = 8
-            else:
-                trace.line.width = 4
-                trace.marker.size = 10
         
         fig.update_layout(
             xaxis_title="Data",
@@ -626,17 +618,14 @@ with tab_visao:
             labels={valor_col: 'Receita (R$)', data_col: 'Data', 'unidade': 'Unidade'}
         )
         
-        # Estilizar linhas - mais grossas e marcadores maiores
+        # Estilizar linhas
         for trace in fig.data:
             if trace.name == 'Média da Rede':
                 trace.line.dash = 'dash'
-                trace.line.width = 4
+                trace.line.width = 3
                 trace.line.color = '#FF6B6B'
-                trace.marker.size = 8
             else:
                 trace.line.color = '#8B0000'
-                trace.line.width = 4
-                trace.marker.size = 10
         
         fig.update_layout(
             xaxis_title="Data",
@@ -660,7 +649,7 @@ with tab_visao:
     
     # Formatar eixo Y com padrão brasileiro
     fig.update_yaxes(tickformat=",.2f")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, use_container_width=True, key="chart_evolucao_receita")
     
     st.markdown("---")
     
@@ -712,7 +701,7 @@ with tab_visao:
         )
         fig_nps.update_traces(textposition='inside', textinfo='percent')
         fig_nps.update_layout(paper_bgcolor='#F5F0E6', height=400, showlegend=True)
-        st.plotly_chart(fig_nps, use_container_width=True)
+        st.plotly_chart(fig_nps, use_container_width=True, key="chart_nps_pizza")
     else:
         st.info("Sem dados de NPS para o período selecionado.")
     
@@ -743,7 +732,7 @@ with tab_visao:
         yaxis={'categoryorder': 'total descending'}
     )
     fig_u.update_xaxes(tickformat=",.2f")
-    st.plotly_chart(fig_u, use_container_width=True)
+    st.plotly_chart(fig_u, use_container_width=True, key="chart_receita_unidade_visao")
 
 # ---------------------- TAB: ATENDIMENTO -------------------------
 with tab_atend:
@@ -790,7 +779,7 @@ with tab_atend:
                 yaxis={'categoryorder': 'total descending'}
             )
             fig_t.update_xaxes(tickformat=",.2f")
-            st.plotly_chart(fig_t, use_container_width=True)
+            st.plotly_chart(fig_t, use_container_width=True, key="chart_top_terapeutas")
         
         with colb:
             st.markdown("### Tabela de Performance")
@@ -840,7 +829,7 @@ with tab_atend:
                 height=500
             )
             fig_s.update_xaxes(tickformat=",.2f")
-            st.plotly_chart(fig_s, use_container_width=True)
+            st.plotly_chart(fig_s, use_container_width=True, key="chart_principais_servicos")
         
         with cols2:
             # Formatar tabela
@@ -922,7 +911,7 @@ with tab_atend:
         paper_bgcolor='#F5F0E6'
     )
     
-    st.plotly_chart(fig_heat1, use_container_width=True)
+    st.plotly_chart(fig_heat1, use_container_width=True, key="chart_heatmap_unidade")
     
     st.markdown("---")
     
@@ -979,7 +968,7 @@ with tab_atend:
             paper_bgcolor='#F5F0E6'
         )
         
-        st.plotly_chart(fig_heat2, use_container_width=True)
+        st.plotly_chart(fig_heat2, use_container_width=True, key="chart_heatmap_servico")
 
 # ---------------------- TAB: FINANCEIRO -------------------------
 with tab_fin:
@@ -1041,7 +1030,7 @@ with tab_fin:
         labels={'Receita': 'Receita (R$)', 'Canal': 'Canal'}
     )
     fig_dist.update_layout(paper_bgcolor='#F5F0E6', height=400)
-    st.plotly_chart(fig_dist, use_container_width=True)
+    st.plotly_chart(fig_dist, use_container_width=True, key="chart_distribuicao_receita")
     
     st.markdown("---")
     
@@ -1071,7 +1060,7 @@ with tab_fin:
         yaxis={'categoryorder': 'total descending'}
     )
     fig_fu.update_xaxes(tickformat=",.2f")
-    st.plotly_chart(fig_fu, use_container_width=True)
+    st.plotly_chart(fig_fu, use_container_width=True, key="chart_receita_unidade_fin")
     
     st.markdown("---")
     
@@ -1107,7 +1096,7 @@ with tab_fin:
                 yaxis={'categoryorder': 'total descending'}
             )
             fig_sf.update_xaxes(tickformat=",.2f")
-            st.plotly_chart(fig_sf, use_container_width=True)
+            st.plotly_chart(fig_sf, use_container_width=True, key="chart_servicos_fin")
         
         with colf_s2:
             df_serv_fin_display = df_serv_fin.copy()
@@ -1167,7 +1156,7 @@ with tab_fin:
                 yaxis={'categoryorder': 'total descending'}
             )
             fig_ef.update_xaxes(tickformat=",.2f")
-            st.plotly_chart(fig_ef, use_container_width=True)
+            st.plotly_chart(fig_ef, use_container_width=True, key="chart_vouchers_fin")
         
         with colf_e2:
             df_ecom_top_display = df_ecom_top.copy()
@@ -1259,7 +1248,7 @@ with tab_mkt:
                 height=450,
                 yaxis={'categoryorder': 'total descending'}
             )
-            st.plotly_chart(fig_serv, use_container_width=True)
+            st.plotly_chart(fig_serv, use_container_width=True, key="chart_vouchers_mkt")
         
         with col_b:
             df_serv_display = df_serv.copy()
@@ -1311,7 +1300,7 @@ with tab_mkt:
                 yaxis={'categoryorder': 'total descending'}
             )
             fig_geo.update_xaxes(tickformat=",.2f")
-            st.plotly_chart(fig_geo, use_container_width=True)
+            st.plotly_chart(fig_geo, use_container_width=True, key="chart_geo_estados")
     
     st.markdown("---")
     
@@ -1368,7 +1357,7 @@ with tab_mkt:
             height=400,
             yaxis={'categoryorder': 'total descending'}
         )
-        st.plotly_chart(fig_pag, use_container_width=True)
+        st.plotly_chart(fig_pag, use_container_width=True, key="chart_pageviews_ga4")
     
     st.markdown("---")
     
@@ -1420,7 +1409,7 @@ with tab_mkt:
             height=400,
             yaxis={'categoryorder': 'total descending'}
         )
-        st.plotly_chart(fig_can, use_container_width=True)
+        st.plotly_chart(fig_can, use_container_width=True, key="chart_sessoes_canal")
         
         st.markdown("### Sessões por Dispositivo")
         
@@ -1441,7 +1430,7 @@ with tab_mkt:
             paper_bgcolor='#F5F0E6',
             height=400
         )
-        st.plotly_chart(fig_disp, use_container_width=True)
+        st.plotly_chart(fig_disp, use_container_width=True, key="chart_dispositivos")
     
     st.markdown("---")
     
@@ -1488,7 +1477,7 @@ with tab_mkt:
                 height=400,
                 yaxis={'categoryorder': 'total descending'}
             )
-            st.plotly_chart(fig_ev, use_container_width=True)
+            st.plotly_chart(fig_ev, use_container_width=True, key="chart_eventos_ga4")
     
     st.markdown("---")
     
@@ -1550,7 +1539,7 @@ with tab_mkt:
                 height=500,
                 yaxis={'categoryorder': 'total descending'}
             )
-            st.plotly_chart(fig_ig, use_container_width=True)
+            st.plotly_chart(fig_ig, use_container_width=True, key="chart_instagram_posts")
         
         with colg_b:
             st.markdown("#### Detalhes dos Top Posts")
@@ -1619,7 +1608,7 @@ with tab_mkt:
             paper_bgcolor='#F5F0E6',
             height=400
         )
-        st.plotly_chart(fig_seg, use_container_width=True)
+        st.plotly_chart(fig_seg, use_container_width=True, key="chart_seguidores_ig")
     
     st.markdown("---")
     
@@ -1691,7 +1680,7 @@ with tab_mkt:
             yaxis={'categoryorder': 'total descending'}
         )
         fig_meta.update_xaxes(tickformat=",.2f")
-        st.plotly_chart(fig_meta, use_container_width=True)
+        st.plotly_chart(fig_meta, use_container_width=True, key="chart_meta_ads")
         
         st.markdown("#### Detalhes das Campanhas (Top 10 por Investimento)")
         
