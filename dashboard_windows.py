@@ -762,16 +762,18 @@ with tab_atend:
                 top_terap,
                 x='receita',
                 y='profissional',
-                color='unidade',
                 orientation='h',
                 text='receita_fmt_label',
                 labels={
                     'receita': 'Receita (R$)',
-                    'profissional': 'Terapeuta',
-                    'unidade': 'Unidade'
+                    'profissional': 'Terapeuta'
                 }
             )
-            fig_t.update_traces(textposition='inside', textfont=dict(color='white', size=11))
+            fig_t.update_traces(
+                marker_color='#8B0000',
+                textposition='inside',
+                textfont=dict(color='white', size=11)
+            )
             fig_t.update_layout(
                 plot_bgcolor='#FFFFFF',
                 paper_bgcolor='#F5F0E6',
@@ -826,7 +828,8 @@ with tab_atend:
             fig_s.update_layout(
                 plot_bgcolor='#FFFFFF',
                 paper_bgcolor='#F5F0E6',
-                height=500
+                height=500,
+                yaxis={'categoryorder': 'total descending'}
             )
             fig_s.update_xaxes(tickformat=",.2f")
             st.plotly_chart(fig_s, use_container_width=True, key="chart_principais_servicos")
