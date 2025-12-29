@@ -821,7 +821,8 @@ with tab_visao:
             color='Classificação',
             color_discrete_map={'Promotores': '#2E7D32', 'Neutros': '#FFA726', 'Detratores': '#D32F2F'}
         )
-        fig_nps.update_layout(paper_bgcolor='#F5F0E6', height=400)
+        fig_nps.update_traces(textposition='inside', textinfo='percent')
+        fig_nps.update_layout(paper_bgcolor='#F5F0E6', height=400, showlegend=True)
         st.plotly_chart(fig_nps, use_container_width=True)
     else:
         st.info("Sem dados de NPS para o período selecionado.")
@@ -835,19 +836,22 @@ with tab_visao:
         .reset_index()
         .sort_values(valor_col, ascending=False)
     )
+    df_unidades['receita_fmt_label'] = df_unidades[valor_col].apply(lambda x: formatar_moeda(x))
     
     fig_u = px.bar(
         df_unidades,
         x=valor_col,
         y='unidade',
         orientation='h',
+        text='receita_fmt_label',
         labels={valor_col: 'Receita (R$)', 'unidade': 'Unidade'}
     )
-    fig_u.update_traces(marker_color='#8B0000')
+    fig_u.update_traces(marker_color='#8B0000', textposition='outside')
     fig_u.update_layout(
         plot_bgcolor='#FFFFFF',
         paper_bgcolor='#F5F0E6',
-        height=450
+        height=450,
+        yaxis={'categoryorder': 'total ascending'}
     )
     fig_u.update_xaxes(tickformat=",.2f")
     st.plotly_chart(fig_u, use_container_width=True)
@@ -873,7 +877,8 @@ with tab_atend:
         
         with cola:
             st.markdown("### Top Terapeutas por Receita")
-            top_terap = df_terap.head(15)
+            top_terap = df_terap.head(15).copy()
+            top_terap['receita_fmt_label'] = top_terap['receita'].apply(lambda x: formatar_moeda(x))
             
             fig_t = px.bar(
                 top_terap,
@@ -881,16 +886,19 @@ with tab_atend:
                 y='profissional',
                 color='unidade',
                 orientation='h',
+                text='receita_fmt_label',
                 labels={
                     'receita': 'Receita (R$)',
                     'profissional': 'Terapeuta',
                     'unidade': 'Unidade'
                 }
             )
+            fig_t.update_traces(textposition='outside')
             fig_t.update_layout(
                 plot_bgcolor='#FFFFFF',
                 paper_bgcolor='#F5F0E6',
-                height=500
+                height=500,
+                yaxis={'categoryorder': 'total ascending'}  # Ordena do menor para maior no eixo Y (maior fica em cima)
             )
             fig_t.update_xaxes(tickformat=",.2f")
             st.plotly_chart(fig_t, use_container_width=True)
@@ -1156,19 +1164,22 @@ with tab_fin:
         .rename(columns={valor_col: 'receita'})
         .sort_values('receita', ascending=False)
     )
+    df_fin_unid['receita_fmt_label'] = df_fin_unid['receita'].apply(lambda x: formatar_moeda(x))
     
     fig_fu = px.bar(
         df_fin_unid,
         x='receita',
         y='unidade',
         orientation='h',
+        text='receita_fmt_label',
         labels={'receita': 'Receita (R$)', 'unidade': 'Unidade'}
     )
-    fig_fu.update_traces(marker_color='#A52A2A')
+    fig_fu.update_traces(marker_color='#A52A2A', textposition='outside')
     fig_fu.update_layout(
         plot_bgcolor='#FFFFFF',
         paper_bgcolor='#F5F0E6',
-        height=450
+        height=450,
+        yaxis={'categoryorder': 'total ascending'}
     )
     fig_fu.update_xaxes(tickformat=",.2f")
     st.plotly_chart(fig_fu, use_container_width=True)
@@ -1189,18 +1200,22 @@ with tab_fin:
         colf_s1, colf_s2 = st.columns([2, 1])
         
         with colf_s1:
+            df_serv_fin['receita_fmt_label'] = df_serv_fin['receita'].apply(lambda x: formatar_moeda(x))
+            
             fig_sf = px.bar(
                 df_serv_fin,
                 x='receita',
                 y='nome_servico_simplificado',
                 orientation='h',
+                text='receita_fmt_label',
                 labels={'receita': 'Receita (R$)', 'nome_servico_simplificado': 'Serviço'}
             )
-            fig_sf.update_traces(marker_color='#8B0000')
+            fig_sf.update_traces(marker_color='#8B0000', textposition='outside')
             fig_sf.update_layout(
                 plot_bgcolor='#FFFFFF',
                 paper_bgcolor='#F5F0E6',
-                height=400
+                height=400,
+                yaxis={'categoryorder': 'total ascending'}
             )
             fig_sf.update_xaxes(tickformat=",.2f")
             st.plotly_chart(fig_sf, use_container_width=True)
@@ -1245,18 +1260,22 @@ with tab_fin:
         colf_e1, colf_e2 = st.columns([2, 1])
         
         with colf_e1:
+            df_ecom_top['receita_fmt_label'] = df_ecom_top['receita_liquida'].apply(lambda x: formatar_moeda(x))
+            
             fig_ef = px.bar(
                 df_ecom_top,
                 x='receita_liquida',
                 y='PACKAGE_NAME',
                 orientation='h',
+                text='receita_fmt_label',
                 labels={'receita_liquida': 'Receita Líquida (R$)', 'PACKAGE_NAME': 'Serviço / Pacote'}
             )
-            fig_ef.update_traces(marker_color='#A52A2A')
+            fig_ef.update_traces(marker_color='#A52A2A', textposition='outside')
             fig_ef.update_layout(
                 plot_bgcolor='#FFFFFF',
                 paper_bgcolor='#F5F0E6',
-                height=400
+                height=400,
+                yaxis={'categoryorder': 'total ascending'}
             )
             fig_ef.update_xaxes(tickformat=",.2f")
             st.plotly_chart(fig_ef, use_container_width=True)
@@ -1334,19 +1353,22 @@ with tab_mkt:
         col_a, col_b = st.columns([2, 1])
         
         with col_a:
+            df_serv['qtde_fmt_label'] = df_serv['qtde_vouchers'].apply(lambda x: formatar_numero(x))
+            
             fig_serv = px.bar(
                 df_serv,
                 x='qtde_vouchers',
                 y='PACKAGE_NAME',
                 orientation='h',
                 labels={'qtde_vouchers': 'Qtd Vouchers', 'PACKAGE_NAME': 'Serviço / Pacote'},
-                text='qtde_vouchers'
+                text='qtde_fmt_label'
             )
             fig_serv.update_traces(marker_color='#8B0000', textposition='outside')
             fig_serv.update_layout(
                 plot_bgcolor='#FFFFFF',
                 paper_bgcolor='#F5F0E6',
-                height=450
+                height=450,
+                yaxis={'categoryorder': 'total ascending'}
             )
             st.plotly_chart(fig_serv, use_container_width=True)
         
@@ -1382,18 +1404,22 @@ with tab_mkt:
                 .head(10)
             )
             
+            df_geo['receita_fmt_label'] = df_geo['receita'].apply(lambda x: formatar_moeda(x))
+            
             fig_geo = px.bar(
                 df_geo,
                 x='receita',
                 y='Customer_State',
                 orientation='h',
+                text='receita_fmt_label',
                 labels={'receita': 'Receita (R$)', 'Customer_State': 'Estado'}
             )
-            fig_geo.update_traces(marker_color='#8B0000')
+            fig_geo.update_traces(marker_color='#8B0000', textposition='outside')
             fig_geo.update_layout(
                 plot_bgcolor='#FFFFFF',
                 paper_bgcolor='#F5F0E6',
-                height=400
+                height=400,
+                yaxis={'categoryorder': 'total ascending'}
             )
             fig_geo.update_xaxes(tickformat=",.2f")
             st.plotly_chart(fig_geo, use_container_width=True)
@@ -1436,18 +1462,22 @@ with tab_mkt:
             .sort_values('page_views', ascending=False)
         )
         
+        df_tipo['pageviews_fmt_label'] = df_tipo['page_views'].apply(lambda x: formatar_numero(int(x)))
+        
         fig_pag = px.bar(
             df_tipo,
             x='page_views',
             y='tipo_pagina',
             orientation='h',
+            text='pageviews_fmt_label',
             labels={'page_views': 'Pageviews', 'tipo_pagina': 'Tipo de Página'}
         )
-        fig_pag.update_traces(marker_color='#8B0000')
+        fig_pag.update_traces(marker_color='#8B0000', textposition='outside')
         fig_pag.update_layout(
             plot_bgcolor='#FFFFFF',
             paper_bgcolor='#F5F0E6',
-            height=400
+            height=400,
+            yaxis={'categoryorder': 'total ascending'}
         )
         st.plotly_chart(fig_pag, use_container_width=True)
     
@@ -1484,18 +1514,22 @@ with tab_mkt:
             .sort_values('sessoes', ascending=False)
         )
         
+        df_canal['sessoes_fmt_label'] = df_canal['sessoes'].apply(lambda x: formatar_numero(int(x)))
+        
         fig_can = px.bar(
             df_canal,
             x='sessoes',
             y='canal',
             orientation='h',
+            text='sessoes_fmt_label',
             labels={'canal': 'Canal', 'sessoes': 'Sessões'}
         )
-        fig_can.update_traces(marker_color='#A52A2A')
+        fig_can.update_traces(marker_color='#A52A2A', textposition='outside')
         fig_can.update_layout(
             plot_bgcolor='#FFFFFF',
             paper_bgcolor='#F5F0E6',
-            height=400
+            height=400,
+            yaxis={'categoryorder': 'total ascending'}
         )
         st.plotly_chart(fig_can, use_container_width=True)
         
@@ -1548,18 +1582,22 @@ with tab_mkt:
                 .sort_values('total_eventos', ascending=False)
             )
             
+            df_eventos_agg['eventos_fmt_label'] = df_eventos_agg['total_eventos'].apply(lambda x: formatar_numero(int(x)))
+            
             fig_ev = px.bar(
                 df_eventos_agg,
                 x='total_eventos',
                 y='evento',
                 orientation='h',
+                text='eventos_fmt_label',
                 labels={'total_eventos': 'Total de Eventos', 'evento': 'Evento'}
             )
-            fig_ev.update_traces(marker_color='#8B0000')
+            fig_ev.update_traces(marker_color='#8B0000', textposition='outside')
             fig_ev.update_layout(
                 plot_bgcolor='#FFFFFF',
                 paper_bgcolor='#F5F0E6',
-                height=400
+                height=400,
+                yaxis={'categoryorder': 'total ascending'}
             )
             st.plotly_chart(fig_ev, use_container_width=True)
     
@@ -1606,19 +1644,22 @@ with tab_mkt:
         colg_a, colg_b = st.columns([2, 1])
         
         with colg_a:
+            df_top_eng['engajamento_fmt_label'] = df_top_eng['engajamento'].apply(lambda x: formatar_numero(int(x)))
+            
             fig_ig = px.bar(
                 df_top_eng,
                 x='engajamento',
                 y='legenda_curta',
                 orientation='h',
                 labels={'engajamento': 'Engajamento (Curtidas + Comentários)', 'legenda_curta': 'Post'},
-                text='engajamento'
+                text='engajamento_fmt_label'
             )
             fig_ig.update_traces(marker_color='#8B0000', textposition='outside')
             fig_ig.update_layout(
                 plot_bgcolor='#FFFFFF',
                 paper_bgcolor='#F5F0E6',
-                height=500
+                height=500,
+                yaxis={'categoryorder': 'total ascending'}
             )
             st.plotly_chart(fig_ig, use_container_width=True)
         
@@ -1743,19 +1784,22 @@ with tab_mkt:
         df_meta_camp['roi'] = (df_meta_camp['vendas_valor'] - df_meta_camp['investido']) / df_meta_camp['investido']
         
         df_meta_top = df_meta_camp.sort_values('investido', ascending=False).head(10)
+        df_meta_top['investido_fmt_label'] = df_meta_top['investido'].apply(lambda x: formatar_moeda(x))
         
         fig_meta = px.bar(
             df_meta_top,
             x='investido',
             y='nome',
             orientation='h',
+            text='investido_fmt_label',
             labels={'investido': 'Investimento (R$)', 'nome': 'Campanha'}
         )
-        fig_meta.update_traces(marker_color='#8B0000')
+        fig_meta.update_traces(marker_color='#8B0000', textposition='outside')
         fig_meta.update_layout(
             plot_bgcolor='#FFFFFF',
             paper_bgcolor='#F5F0E6',
-            height=450
+            height=450,
+            yaxis={'categoryorder': 'total ascending'}
         )
         fig_meta.update_xaxes(tickformat=",.2f")
         st.plotly_chart(fig_meta, use_container_width=True)
