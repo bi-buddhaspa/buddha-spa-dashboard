@@ -185,7 +185,7 @@ def formatar_percentual(valor):
 # -----------------------------------------------------------------------------
 st.set_page_config(
     page_title="Buddha Spa Analytics",
-    page_icon="🧘",
+    page_icon="🪷",
     layout="wide"
 )
 
@@ -227,9 +227,14 @@ def fazer_logout():
     st.session_state.unidade = None
 
 if not st.session_state.autenticado:
+    col_logo_login, col_space = st.columns([1, 3])
+    
+    with col_logo_login:
+        st.image("https://franquia.buddhaspa.com.br/wp-content/uploads/2022/04/perfil_BUDDHA_SPA_2.png", width=200)
+    
     st.markdown("""
-        <div style='text-align: center; padding: 50px;'>
-            <h1 style='color: #8B0000;'>🧘 Portal de Franqueados - Buddha Spa</h1>
+        <div style='text-align: center; padding: 20px;'>
+            <h1 style='color: #8B0000;'>Portal de Franqueados - Buddha Spa</h1>
             <p style='color: #666;'>Faça login para acessar o dashboard</p>
         </div>
     """, unsafe_allow_html=True)
@@ -613,8 +618,14 @@ valor_col = 'valor_liquido'
 # -----------------------------------------------------------------------------
 # HEADER / KPIs
 # -----------------------------------------------------------------------------
-st.title("Buddha Spa - Dashboard de Unidades")
-st.caption(f"Período: {data_inicio.strftime('%d/%m/%Y')} a {data_fim.strftime('%d/%m/%Y')}")
+col_logo, col_title = st.columns([1, 5])
+
+with col_logo:
+    st.image("https://franquia.buddhaspa.com.br/wp-content/uploads/2022/04/perfil_BUDDHA_SPA_2.png", width=120)
+
+with col_title:
+    st.title("Buddha Spa - Dashboard de Unidades")
+    st.caption(f"Período: {data_inicio.strftime('%d/%m/%Y')} a {data_fim.strftime('%d/%m/%Y')}")
 
 receita_total = df[valor_col].sum()
 qtd_atendimentos = int(df['id_venda'].nunique())
