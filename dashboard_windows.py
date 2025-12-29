@@ -868,6 +868,8 @@ with tab_visao:
         text='receita_fmt_label',
         labels={valor_col: 'Receita (R$)', 'unidade': 'Unidade'}
     )
+    # Garantir maior no topo
+    fig_u.update_yaxes(autorange='reversed')
     fig_u.update_traces(marker_color='#8B0000', textposition='inside', textfont=dict(color='white', size=11))
     fig_u.update_layout(
         plot_bgcolor='#FFFFFF',
@@ -916,6 +918,8 @@ with tab_atend:
                 },
                 color_discrete_sequence=['#8B0000', '#A52A2A', '#CD5C5C', '#D2691E', '#B22222', '#C04000', '#8B4513', '#A0522D']
             )
+            # Garantir maior no topo
+            fig_t.update_yaxes(autorange='reversed')
             fig_t.update_traces(
                 textposition='inside',
                 textfont=dict(color='white', size=11)
@@ -970,6 +974,8 @@ with tab_atend:
                 text=df_servicos['perc_receita'].map(lambda x: f"{x*100:.1f}%"),
                 labels={'receita': 'Receita (R$)', 'nome_servico_simplificado': 'Serviço'}
             )
+            # Garantir maior no topo
+            fig_s.update_yaxes(autorange='reversed')
             fig_s.update_traces(marker_color='#8B0000', textposition='inside', textfont=dict(color='white', size=11))
             fig_s.update_layout(
                 plot_bgcolor='#FFFFFF',
@@ -1201,6 +1207,8 @@ with tab_fin:
         text='receita_fmt_label',
         labels={'receita': 'Receita (R$)', 'unidade': 'Unidade'}
     )
+    # Garantir maior no topo
+    fig_fu.update_yaxes(autorange='reversed')
     fig_fu.update_traces(marker_color='#8B0000', textposition='inside', textfont=dict(color='white', size=11))
     fig_fu.update_layout(
         plot_bgcolor='#FFFFFF',
@@ -1237,6 +1245,8 @@ with tab_fin:
                 text='receita_fmt_label',
                 labels={'receita': 'Receita (R$)', 'nome_servico_simplificado': 'Serviço'}
             )
+            # Garantir maior no topo
+            fig_sf.update_yaxes(autorange='reversed')
             fig_sf.update_traces(marker_color='#8B0000', textposition='inside', textfont=dict(color='white', size=11))
             fig_sf.update_layout(
                 plot_bgcolor='#FFFFFF',
@@ -1297,6 +1307,8 @@ with tab_fin:
                 text='receita_fmt_label',
                 labels={'receita_liquida': 'Receita Líquida (R$)', 'PACKAGE_NAME': 'Serviço / Pacote'}
             )
+            # Garantir maior no topo
+            fig_ef.update_yaxes(autorange='reversed')
             fig_ef.update_traces(marker_color='#8B0000', textposition='inside', textfont=dict(color='white', size=11))
             fig_ef.update_layout(
                 plot_bgcolor='#FFFFFF',
@@ -1390,6 +1402,8 @@ with tab_mkt:
                 labels={'qtde_vouchers': 'Qtd Vouchers', 'PACKAGE_NAME': 'Serviço / Pacote'},
                 text='qtde_fmt_label'
             )
+            # Garantir maior no topo
+            fig_serv.update_yaxes(autorange='reversed')
             fig_serv.update_traces(marker_color='#8B0000', textposition='inside', textfont=dict(color='white', size=11))
             fig_serv.update_layout(
                 plot_bgcolor='#FFFFFF',
@@ -1441,6 +1455,8 @@ with tab_mkt:
                 text='receita_fmt_label',
                 labels={'receita': 'Receita (R$)', 'Customer_State': 'Estado'}
             )
+            # Garantir maior no topo
+            fig_geo.update_yaxes(autorange='reversed')
             fig_geo.update_traces(marker_color='#8B0000', textposition='inside', textfont=dict(color='white', size=11))
             fig_geo.update_layout(
                 plot_bgcolor='#FFFFFF',
@@ -1499,6 +1515,8 @@ with tab_mkt:
             text='pageviews_fmt_label',
             labels={'page_views': 'Pageviews', 'tipo_pagina': 'Tipo de Página'}
         )
+        # Garantir maior no topo
+        fig_pag.update_yaxes(autorange='reversed')
         fig_pag.update_traces(marker_color='#8B0000', textposition='inside', textfont=dict(color='white', size=11))
         fig_pag.update_layout(
             plot_bgcolor='#FFFFFF',
@@ -1551,6 +1569,8 @@ with tab_mkt:
             text='sessoes_fmt_label',
             labels={'canal': 'Canal', 'sessoes': 'Sessões'}
         )
+        # Garantir maior no topo
+        fig_can.update_yaxes(autorange='reversed')
         fig_can.update_traces(marker_color='#8B0000', textposition='inside', textfont=dict(color='white', size=11))
         fig_can.update_layout(
             plot_bgcolor='#FFFFFF',
@@ -1619,6 +1639,8 @@ with tab_mkt:
                 text='eventos_fmt_label',
                 labels={'total_eventos': 'Total de Eventos', 'evento': 'Evento'}
             )
+            # Garantir maior no topo
+            fig_ev.update_yaxes(autorange='reversed')
             fig_ev.update_traces(marker_color='#8B0000', textposition='inside', textfont=dict(color='white', size=11))
             fig_ev.update_layout(
                 plot_bgcolor='#FFFFFF',
@@ -1681,6 +1703,8 @@ with tab_mkt:
                 labels={'engajamento': 'Engajamento (Curtidas + Comentários)', 'legenda_curta': 'Post'},
                 text='engajamento_fmt_label'
             )
+            # Garantir maior no topo
+            fig_ig.update_yaxes(autorange='reversed')
             fig_ig.update_traces(marker_color='#8B0000', textposition='inside', textfont=dict(color='white', size=11))
             fig_ig.update_layout(
                 plot_bgcolor='#FFFFFF',
@@ -1821,6 +1845,8 @@ with tab_mkt:
             text='investido_fmt_label',
             labels={'investido': 'Investimento (R$)', 'nome': 'Campanha'}
         )
+        # Garantir maior no topo
+        fig_meta.update_yaxes(autorange='reversed')
         fig_meta.update_traces(marker_color='#8B0000', textposition='inside', textfont=dict(color='white', size=11))
         fig_meta.update_layout(
             plot_bgcolor='#FFFFFF',
@@ -2021,5 +2047,5 @@ with tab_gloss:
     
     Neste dashboard, você vê apenas os **vouchers que foram utilizados na sua unidade**, não os vendidos. A data considerada é a `USED_DATE` (quando o cliente usou o voucher), não a `CREATED_DATE` (quando comprou).
     """)
-    
+     
     st.caption("Buddha Spa Dashboard – Portal de Franqueados v2.0")
