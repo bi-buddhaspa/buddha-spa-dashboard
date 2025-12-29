@@ -17,6 +17,7 @@ except:
 
 # -----------------------------------------------------------------------------
 # MAPEAMENTO DE UNIDADES - BELLE ID
+# (mantive seu dicionário original)
 # -----------------------------------------------------------------------------
 UNIDADE_BELLE_MAP = {
     'buddha spa - higienópolis': 708,
@@ -868,7 +869,6 @@ with tab_visao:
         text='receita_fmt_label',
         labels={valor_col: 'Receita (R$)', 'unidade': 'Unidade'}
     )
-    # Garantir maior no topo
     fig_u.update_yaxes(autorange='reversed')
     fig_u.update_traces(marker_color='#8B0000', textposition='inside', textfont=dict(color='white', size=11))
     fig_u.update_layout(
@@ -897,57 +897,86 @@ with tab_atend:
         df_terap['ticket_medio'] = df_terap['receita'] / df_terap['qtd_atendimentos']
         df_terap = df_terap.sort_values('receita', ascending=False)
         
-        cola, colb = st.columns([2, 1])
+        # -------------------------------------------------------------
+        # NOVA IMPLEMENTAÇÃO: mostrar gráficos separados por UNIDADE,
+        # ordenados do maior para o menor (maior no topo) e com cores
+        # distintas por unidade.
+        # -------------------------------------------------------------
+        st.markdown("### Top Terapeutas por Receita (por Unidade)")
+        st.markdown("Cada unidade abaixo mostra os terapeutas ordenados do maior para o menor (maior no topo).")
         
-        with cola:
-            st.markdown("### Top Terapeutas por Receita")
-            top_terap = df_terap.head(15).copy()
-            top_terap['receita_fmt_label'] = top_terap['receita'].apply(lambda x: formatar_moeda(x))
+        # Determinar quais unidades mostrar:
+        if is_admin:
+            # Se o admin selecionou unidades, usamos as selecionadas; caso contrário, pegamos as top N unidades por receita
+            if unidades_selecionadas:
+                unidades_para_plot = [u for u in unidades_selecionadas]
+            else:
+                # Pegar as 8 unidades com maior receita no período (para não sobrecarregar a tela)
+                unidades_por_receita = (
+                    df.groupby('unidade')[valor_col]
+                    .sum()
+                    .reset_index()
+                    .sort_values(valor_col, ascending=False)
+                )
+                unidades_para_plot = unidades_por_receita['unidade'].head(8).tolist()
+        else:
+            unidades_para_plot = [unidade_usuario]
+        
+        # Palette de cores (varias cores distintas)
+        palette = px.colors.qualitative.Dark24  # lista com 24 cores distintas
+        color_map = {}
+        for i, u in enumerate(unidades_para_plot):
+            color_map[u] = palette[i % len(palette)]
+        
+        # Loop por unidade e desenhar um gráfico por unidade
+        for unidade in unidades_para_plot:
+            st.markdown(f"#### {unidade.title()}")
+            df_un = df_terap[df_terap['unidade'] == unidade].copy()
+            if df_un.empty:
+                st.info("Sem terapeutas registrados para essa unidade no período selecionado.")
+                continue
             
-            fig_t = px.bar(
-                top_terap,
+            # ordenar por receita desc e limitar top 15
+            df_un = df_un.sort_values('receita', ascending=False).head(15)
+            df_un['receita_fmt_label'] = df_un['receita'].apply(lambda x: formatar_moeda(x))
+            
+            fig_unit = px.bar(
+                df_un,
                 x='receita',
                 y='profissional',
-                color='unidade',
                 orientation='h',
                 text='receita_fmt_label',
-                labels={
-                    'receita': 'Receita (R$)',
-                    'profissional': 'Terapeuta',
-                    'unidade': 'Unidade'
-                },
-                color_discrete_sequence=['#8B0000', '#A52A2A', '#CD5C5C', '#D2691E', '#B22222', '#C04000', '#8B4513', '#A0522D']
+                labels={'receita': 'Receita (R$)', 'profissional': 'Terapeuta'},
+                color_discrete_sequence=[color_map[unidade]]  # mesma cor para todos bars da unidade
             )
             # Garantir maior no topo
-            fig_t.update_yaxes(autorange='reversed')
-            fig_t.update_traces(
-                textposition='inside',
-                textfont=dict(color='white', size=11)
-            )
-            fig_t.update_layout(
+            fig_unit.update_yaxes(autorange='reversed')
+            fig_unit.update_traces(textposition='inside', textfont=dict(color='white', size=11))
+            fig_unit.update_layout(
                 plot_bgcolor='#FFFFFF',
                 paper_bgcolor='#F5F0E6',
-                height=500,
-                yaxis={'categoryorder': 'total descending'}
+                height=420,
+                yaxis={'categoryorder': 'total descending'},
+                margin=dict(l=150, r=20, t=30, b=30)
             )
-            fig_t.update_xaxes(tickformat=",.2f")
-            st.plotly_chart(fig_t, use_container_width=True, key="chart_top_terapeutas")
+            fig_unit.update_xaxes(tickformat=",.2f")
+            st.plotly_chart(fig_unit, use_container_width=True)
         
-        with colb:
-            st.markdown("### Tabela de Performance")
-            
-            # Formatar dataframe para exibição
-            df_terap_display = df_terap.copy()
-            df_terap_display['receita'] = df_terap_display['receita'].apply(formatar_moeda)
-            df_terap_display['qtd_atendimentos'] = df_terap_display['qtd_atendimentos'].apply(formatar_numero)
-            df_terap_display['clientes_unicos'] = df_terap_display['clientes_unicos'].apply(formatar_numero)
-            df_terap_display['ticket_medio'] = df_terap_display['ticket_medio'].apply(formatar_moeda)
-            
-            st.dataframe(
-                df_terap_display,
-                use_container_width=True,
-                height=500
-            )
+        st.markdown("---")
+        
+        # Mantive a tabela de performance agregada (todas unidades)
+        st.markdown("### Tabela de Performance")
+        df_terap_display = df_terap.copy()
+        df_terap_display['receita'] = df_terap_display['receita'].apply(formatar_moeda)
+        df_terap_display['qtd_atendimentos'] = df_terap_display['qtd_atendimentos'].apply(formatar_numero)
+        df_terap_display['clientes_unicos'] = df_terap_display['clientes_unicos'].apply(formatar_numero)
+        df_terap_display['ticket_medio'] = df_terap_display['ticket_medio'].apply(formatar_moeda)
+        
+        st.dataframe(
+            df_terap_display,
+            use_container_width=True,
+            height=500
+        )
     
     st.markdown("---")
     
@@ -974,7 +1003,6 @@ with tab_atend:
                 text=df_servicos['perc_receita'].map(lambda x: f"{x*100:.1f}%"),
                 labels={'receita': 'Receita (R$)', 'nome_servico_simplificado': 'Serviço'}
             )
-            # Garantir maior no topo
             fig_s.update_yaxes(autorange='reversed')
             fig_s.update_traces(marker_color='#8B0000', textposition='inside', textfont=dict(color='white', size=11))
             fig_s.update_layout(
@@ -1207,7 +1235,6 @@ with tab_fin:
         text='receita_fmt_label',
         labels={'receita': 'Receita (R$)', 'unidade': 'Unidade'}
     )
-    # Garantir maior no topo
     fig_fu.update_yaxes(autorange='reversed')
     fig_fu.update_traces(marker_color='#8B0000', textposition='inside', textfont=dict(color='white', size=11))
     fig_fu.update_layout(
@@ -1245,7 +1272,6 @@ with tab_fin:
                 text='receita_fmt_label',
                 labels={'receita': 'Receita (R$)', 'nome_servico_simplificado': 'Serviço'}
             )
-            # Garantir maior no topo
             fig_sf.update_yaxes(autorange='reversed')
             fig_sf.update_traces(marker_color='#8B0000', textposition='inside', textfont=dict(color='white', size=11))
             fig_sf.update_layout(
@@ -1307,7 +1333,6 @@ with tab_fin:
                 text='receita_fmt_label',
                 labels={'receita_liquida': 'Receita Líquida (R$)', 'PACKAGE_NAME': 'Serviço / Pacote'}
             )
-            # Garantir maior no topo
             fig_ef.update_yaxes(autorange='reversed')
             fig_ef.update_traces(marker_color='#8B0000', textposition='inside', textfont=dict(color='white', size=11))
             fig_ef.update_layout(
@@ -1402,7 +1427,6 @@ with tab_mkt:
                 labels={'qtde_vouchers': 'Qtd Vouchers', 'PACKAGE_NAME': 'Serviço / Pacote'},
                 text='qtde_fmt_label'
             )
-            # Garantir maior no topo
             fig_serv.update_yaxes(autorange='reversed')
             fig_serv.update_traces(marker_color='#8B0000', textposition='inside', textfont=dict(color='white', size=11))
             fig_serv.update_layout(
@@ -1455,7 +1479,6 @@ with tab_mkt:
                 text='receita_fmt_label',
                 labels={'receita': 'Receita (R$)', 'Customer_State': 'Estado'}
             )
-            # Garantir maior no topo
             fig_geo.update_yaxes(autorange='reversed')
             fig_geo.update_traces(marker_color='#8B0000', textposition='inside', textfont=dict(color='white', size=11))
             fig_geo.update_layout(
@@ -1515,7 +1538,6 @@ with tab_mkt:
             text='pageviews_fmt_label',
             labels={'page_views': 'Pageviews', 'tipo_pagina': 'Tipo de Página'}
         )
-        # Garantir maior no topo
         fig_pag.update_yaxes(autorange='reversed')
         fig_pag.update_traces(marker_color='#8B0000', textposition='inside', textfont=dict(color='white', size=11))
         fig_pag.update_layout(
@@ -1569,7 +1591,6 @@ with tab_mkt:
             text='sessoes_fmt_label',
             labels={'canal': 'Canal', 'sessoes': 'Sessões'}
         )
-        # Garantir maior no topo
         fig_can.update_yaxes(autorange='reversed')
         fig_can.update_traces(marker_color='#8B0000', textposition='inside', textfont=dict(color='white', size=11))
         fig_can.update_layout(
@@ -1639,7 +1660,6 @@ with tab_mkt:
                 text='eventos_fmt_label',
                 labels={'total_eventos': 'Total de Eventos', 'evento': 'Evento'}
             )
-            # Garantir maior no topo
             fig_ev.update_yaxes(autorange='reversed')
             fig_ev.update_traces(marker_color='#8B0000', textposition='inside', textfont=dict(color='white', size=11))
             fig_ev.update_layout(
@@ -1703,7 +1723,6 @@ with tab_mkt:
                 labels={'engajamento': 'Engajamento (Curtidas + Comentários)', 'legenda_curta': 'Post'},
                 text='engajamento_fmt_label'
             )
-            # Garantir maior no topo
             fig_ig.update_yaxes(autorange='reversed')
             fig_ig.update_traces(marker_color='#8B0000', textposition='inside', textfont=dict(color='white', size=11))
             fig_ig.update_layout(
@@ -1845,7 +1864,6 @@ with tab_mkt:
             text='investido_fmt_label',
             labels={'investido': 'Investimento (R$)', 'nome': 'Campanha'}
         )
-        # Garantir maior no topo
         fig_meta.update_yaxes(autorange='reversed')
         fig_meta.update_traces(marker_color='#8B0000', textposition='inside', textfont=dict(color='white', size=11))
         fig_meta.update_layout(
