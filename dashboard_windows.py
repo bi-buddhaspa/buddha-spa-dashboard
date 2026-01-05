@@ -482,28 +482,23 @@ BELLE_ID_TO_UNIDADE = criar_mapa_reverso_belle()
 
 @st.cache_data(ttl=3600)
 def load_chamados_sults(data_inicio, data_fim, unidade_filtro=None):
-    """
-    Carrega dados de chamados Sults do BigQuery
-    Tabela: buddha-bigdata.analytics.chamados_analytics_completa
-    Faz JOIN com BELLE ID (unidade_id) para obter nome da unidade
-    """
+    """Carrega chamados Sults do BigQuery"""
     client = get_bigquery_client()
     
-    # Construir filtro de unidades se necessário
     filtro_unidade_sql = ""
     if unidade_filtro:
         if isinstance(unidade_filtro, list):
-            # Obter belle_ids das unidades selecionadas
             belle_ids = [UNIDADE_BELLE_MAP.get(u.lower()) for u in unidade_filtro]
-            belle_ids = [bid for bid in belle_ids if bid is not None]  # Remover None
+            belle_ids = [bid for bid in belle_ids if bid is not None]
             if belle_ids:
+                # CORREÇÃO: Fazer CAST para INT64 na comparação
                 belle_ids_str = ','.join([str(bid) for bid in belle_ids])
-                filtro_unidade_sql = f"AND unidade_id IN ({belle_ids_str})"
+                filtro_unidade_sql = f"AND CAST(unidade_id AS INT64) IN ({belle_ids_str})"
         else:
-            # Uma única unidade
             belle_id = UNIDADE_BELLE_MAP.get(unidade_filtro.lower())
             if belle_id:
-                filtro_unidade_sql = f"AND unidade_id = {belle_id}"
+                # CORREÇÃO: Fazer CAST para INT64 na comparação
+                filtro_unidade_sql = f"AND CAST(unidade_id AS INT64) = {belle_id}"
     
     query = f"""
     SELECT 
@@ -523,12 +518,29 @@ def load_chamados_sults(data_inicio, data_fim, unidade_filtro=None):
     FROM `buddha-bigdata.analytics.chamados_analytics_completa`
     WHERE DATE(aberto_sp) BETWEEN DATE('{data_inicio}') AND DATE('{data_fim}')
         {filtro_unidade_sql}
+    ORDER BY aberto_sp DESC
     """
     
     df_raw = client.query(query).to_dataframe()
     
     if df_raw.empty:
         return df_raw
+    
+    # Converter unidade_id para int antes de mapear
+    df_raw['unidade_id'] = pd.to_numeric(df_raw['unidade_id'], errors='coerce')
+    df_raw['unidade'] = df_raw['unidade_id'].map(BELLE_ID_TO_UNIDADE)
+    df_raw = df_raw[df_raw['unidade'].notna()].copy()
+    df_raw['unidade'] = df_raw['unidade'].str.lower()
+    
+    df_raw = df_raw.rename(columns={
+        'data_abertura': 'data',
+        'assunto_nome': 'assunto',
+        'situacao_descricao': 'status',
+        'status_sla_horas_comerciais': 'prazo',
+        'titulo': 'descricao'
+    })
+    
+    return df_raw
     
     # FAZER JOIN COM BELLE ID -> NOME UNIDADE (padronizado)
     df_raw['unidade'] = df_raw['unidade_id'].map(BELLE_ID_TO_UNIDADE)
