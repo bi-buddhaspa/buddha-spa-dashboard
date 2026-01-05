@@ -565,104 +565,337 @@ def load_chamados_sults(data_inicio, data_fim, unidade_filtro=None):
 @st.cache_data(ttl=3600)
 def load_reclamacoes_reclameaqui(data_inicio, data_fim, unidade_filtro=None):
     """
-    Carrega dados de reclamações do Reclame Aqui do SharePoint/BigQuery
-    Faz JOIN com BELLE ID para obter nome da unidade
-    
-    ESTRUTURA ESPERADA DA PLANILHA:
-    - data: Data da reclamação
-    - belle_id: ID da Belle/unidade (int)
-    - nota: Nota dada pelo cliente (0-5)
-    - descricao: Descrição da reclamação
-    - status_resposta: "Respondida", "Não Respondida", etc.
+    Carrega reclamações Reclame Aqui do SharePoint
+    VERSÃO SIMPLIFICADA - Carrega tudo primeiro, filtra depois
     """
+    try:
+        df_raw = ler_planilha_sharepoint(URL_RECLAME_AQUI, nome_aba="BD_Base")
+    except Exception as e:
+        st.error(f"Erro ao ler Reclame Aqui: {e}")
+        return pd.DataFrame()
     
-    # TODO: IMPLEMENTAR LEITURA DO SHAREPOINT
-    # URL esperada: https://buddhaspaCombr.sharepoint.com/.../ReclamaMC3A7MC3A3o20de20Clientes%20Novo.xlsx
+    if df_raw.empty:
+        st.warning("Planilha Reclame Aqui está vazia")
+        return df_raw
     
-    # DADOS FICTÍCIOS PARA DEMONSTRAÇÃO (REMOVER QUANDO CONECTAR)
-    dados_exemplo = {
-        'data': pd.date_range(start=data_inicio, end=data_fim, periods=5),
-        'belle_id': [708, 751, 706, 708, 751],  # IDs da Belle
-        'nota': [1.0, 2.0, 1.0, 3.0, 2.5],
-        'descricao': ['Reclamação sobre atendimento', 'Problema com agendamento', 'Insatisfação com serviço', 'Atraso no atendimento', 'Qualidade do produto'],
-        'status_resposta': ['Respondida', 'Respondida', 'Não Respondida', 'Respondida', 'Respondida']
-    }
+    # ==================================================================
+    # ESTRATÉGIA: Carregar TUDO, depois filtrar de forma flexível
+    # ==================================================================
     
-    df_raw = pd.DataFrame(dados_exemplo)
+    # 1. IDENTIFICAR COLUNA DE DATA (flexível)
+    data_col = None
+    for col in df_raw.columns:
+        col_lower = col.lower()
+        if any(x in col_lower for x in ['data', 'exerc', 'mês', 'mes', 'periodo']):
+            data_col = col
+            break
     
-    # FAZER JOIN COM BELLE ID -> NOME UNIDADE
-    df_raw['unidade'] = df_raw['belle_id'].map(BELLE_ID_TO_UNIDADE)
+    if data_col is None:
+        st.error(f"❌ Coluna de data não encontrada. Colunas disponíveis: {df_raw.columns.tolist()}")
+        return pd.DataFrame()
     
-    # Remover registros sem correspondência
-    df_raw = df_raw[df_raw['unidade'].notna()].copy()
+    # Converter para datetime
+    df_raw['data'] = pd.to_datetime(df_raw[data_col], errors='coerce')
     
-    # Converter unidade para lowercase
-    df_raw['unidade'] = df_raw['unidade'].str.lower()
+    # 2. IDENTIFICAR COLUNA DE UNIDADE/BELLE ID (múltiplas tentativas)
+    df_raw['unidade_nome'] = None
     
-    # Aplicar filtro de unidade se especificado
+    # Tentativa 1: Coluna "UNIDADES" (formato: "708-Buddha Spa - Higienópolis")
+    if 'UNIDADES' in df_raw.columns:
+        # Extrair nome da unidade diretamente (tudo após o hífen e ID)
+        df_raw['unidade_nome'] = df_raw['UNIDADES'].astype(str).str.replace(r'^\d+-\s*', '', regex=True).str.strip().str.lower()
+    
+    # Tentativa 2: Coluna "Unidade"
+    elif 'Unidade' in df_raw.columns:
+        df_raw['unidade_nome'] = df_raw['Unidade'].astype(str).str.strip().str.lower()
+    
+    # Tentativa 3: Coluna "unidade"
+    elif 'unidade' in df_raw.columns:
+        df_raw['unidade_nome'] = df_raw['unidade'].astype(str).str.strip().str.lower()
+    
+    # Se não encontrou, tentar mapear por Belle ID
+    if df_raw['unidade_nome'].isna().all():
+        # Tentar extrair Belle ID
+        for col in df_raw.columns:
+            if 'belle' in col.lower() or 'id' in col.lower():
+                df_raw['belle_id_temp'] = pd.to_numeric(df_raw[col], errors='coerce')
+                df_raw['unidade_nome'] = df_raw['belle_id_temp'].map(BELLE_ID_TO_UNIDADE)
+                break
+        
+        # Se ainda não deu, tentar extrair da coluna UNIDADES
+        if df_raw['unidade_nome'].isna().all() and 'UNIDADES' in df_raw.columns:
+            df_raw['belle_id_temp'] = df_raw['UNIDADES'].astype(str).str.extract(r'^(\d+)', expand=False)
+            df_raw['belle_id_temp'] = pd.to_numeric(df_raw['belle_id_temp'], errors='coerce')
+            df_raw['unidade_nome'] = df_raw['belle_id_temp'].map(BELLE_ID_TO_UNIDADE)
+    
+    # 3. FILTRAR POR DATA
+    df_filtrado = df_raw[
+        (df_raw['data'].notna()) &
+        (df_raw['data'] >= pd.to_datetime(data_inicio)) &
+        (df_raw['data'] <= pd.to_datetime(data_fim))
+    ].copy()
+    
+    if df_filtrado.empty:
+        st.warning(f"Nenhuma reclamação encontrada entre {data_inicio} e {data_fim}")
+        return pd.DataFrame()
+    
+    # 4. APLICAR FILTRO DE UNIDADE (se especificado)
     if unidade_filtro:
         if isinstance(unidade_filtro, list):
-            df_raw = df_raw[df_raw['unidade'].isin([u.lower() for u in unidade_filtro])]
+            # Múltiplas unidades
+            unidades_lower = [u.lower() for u in unidade_filtro]
+            # Filtro flexível: busca por substring
+            mask = df_filtrado['unidade_nome'].apply(
+                lambda x: any(unid in str(x).lower() for unid in unidades_lower) if pd.notna(x) else False
+            )
+            df_filtrado = df_filtrado[mask]
         else:
-            df_raw = df_raw[df_raw['unidade'] == unidade_filtro.lower()]
+            # Uma unidade
+            unidade_lower = unidade_filtro.lower()
+            # Filtro flexível: busca por substring
+            df_filtrado = df_filtrado[
+                df_filtrado['unidade_nome'].astype(str).str.lower().str.contains(unidade_lower, na=False)
+            ]
     
-    return df_raw
+    # 5. ADICIONAR COLUNAS NECESSÁRIAS
+    # Nota
+    if 'NOTA' in df_filtrado.columns:
+        df_filtrado['nota'] = pd.to_numeric(df_filtrado['NOTA'], errors='coerce')
+    elif 'Nota' in df_filtrado.columns:
+        df_filtrado['nota'] = pd.to_numeric(df_filtrado['Nota'], errors='coerce')
+    else:
+        df_filtrado['nota'] = 5.0
+    
+    # Descrição
+    if 'UNIDADES' in df_filtrado.columns:
+        df_filtrado['descricao'] = df_filtrado['UNIDADES'].astype(str)
+    else:
+        df_filtrado['descricao'] = 'Reclamação registrada'
+    
+    # Renomear unidade_nome para unidade
+    df_filtrado = df_filtrado.rename(columns={'unidade_nome': 'unidade'})
+    
+    return df_filtrado
+
 
 @st.cache_data(ttl=3600)
 def load_eventos_participacoes(data_inicio, data_fim, unidade_filtro=None):
     """
-    Carrega dados de participações em eventos do SharePoint/BigQuery
-    Faz JOIN com BELLE ID para obter nome da unidade
-    
-    ESTRUTURA ESPERADA DA PLANILHA:
-    - data: Data do evento
-    - evento: Nome/descrição do evento
-    - belle_id: ID da Belle/unidade (int)
-    - participantes: Número de participantes daquela unidade
-    - tipo_evento: "Treinamento", "Workshop", "Campanha", etc.
+    Carrega eventos do SharePoint
+    VERSÃO SIMPLIFICADA - Carrega tudo primeiro, filtra depois
     """
+    try:
+        df_raw = ler_planilha_sharepoint(URL_EVENTOS, nome_aba="Pex 2025")
+    except Exception as e:
+        st.error(f"Erro ao ler Eventos: {e}")
+        return pd.DataFrame()
     
-    # TODO: IMPLEMENTAR LEITURA DO SHAREPOINT
-    # URL esperada: https://buddhaspaCombr.sharepoint.com/.../Controle20participa%C3%A7%C3%B5es20em%20eventos2base20nova.xlsx
+    if df_raw.empty:
+        st.warning("Planilha de Eventos está vazia")
+        return df_raw
     
-    # DADOS FICTÍCIOS PARA DEMONSTRAÇÃO (REMOVER QUANDO CONECTAR)
-    dados_exemplo = {
-        'data': pd.date_range(start=data_inicio, end=data_fim, periods=8),
-        'evento': [
-            'Campanha Black November - Instituto Buddha Spa - Anúncio Estratégico Com Gustavo Albanesi',
-            'Como Gerir Metas E Estruturar Reuniões De Feedback',
-            'Workshop de Vendas e Atendimento ao Cliente',
-            'Treinamento Técnico - Massagem Ayurvédica',
-            'Reunião Estratégica - Metas Q1 2025',
-            'Workshop de Técnicas de Relaxamento',
-            'Treinamento SAF - Sistema Financeiro',
-            'Evento Buddha Spa College - Certificação'
-        ],
-        'belle_id': [708, 751, 706, 708, 751, 706, 708, 751],  # IDs da Belle
-        'participantes': [3, 2, 4, 2, 3, 2, 1, 3],
-        'tipo_evento': ['Campanha', 'Treinamento', 'Workshop', 'Treinamento', 'Reunião', 'Workshop', 'Treinamento', 'Certificação']
-    }
+    # ==================================================================
+    # ESTRATÉGIA: Carregar TUDO, depois filtrar de forma flexível
+    # ==================================================================
     
-    df_raw = pd.DataFrame(dados_exemplo)
+    # 1. IDENTIFICAR COLUNA DE DATA
+    data_col = None
+    for col in df_raw.columns:
+        if 'data' in col.lower():
+            data_col = col
+            break
     
-    # FAZER JOIN COM BELLE ID -> NOME UNIDADE
-    df_raw['unidade'] = df_raw['belle_id'].map(BELLE_ID_TO_UNIDADE)
+    if data_col is None:
+        # Tentar coluna na posição 5 (comum em planilhas de eventos)
+        if len(df_raw.columns) > 5:
+            data_col = df_raw.columns[5]
+        else:
+            st.error(f"❌ Coluna de data não encontrada. Colunas: {df_raw.columns.tolist()}")
+            return pd.DataFrame()
     
-    # Remover registros sem correspondência
-    df_raw = df_raw[df_raw['unidade'].notna()].copy()
+    df_raw['data'] = pd.to_datetime(df_raw[data_col], errors='coerce')
     
-    # Converter unidade para lowercase
-    df_raw['unidade'] = df_raw['unidade'].str.lower()
+    # 2. IDENTIFICAR COLUNA DE UNIDADE
+    df_raw['unidade_nome'] = None
     
-    # Aplicar filtro de unidade se especificado
+    # Tentativa 1: Coluna "Unidade"
+    if 'Unidade' in df_raw.columns:
+        df_raw['unidade_nome'] = df_raw['Unidade'].astype(str).str.strip().str.lower()
+    elif 'unidade' in df_raw.columns:
+        df_raw['unidade_nome'] = df_raw['unidade'].astype(str).str.strip().str.lower()
+    
+    # Tentativa 2: Mapear por Belle ID
+    if df_raw['unidade_nome'].isna().all():
+        belle_id_col = None
+        for col in df_raw.columns:
+            if 'belle' in col.lower() or col.lower() == 'id_belle':
+                belle_id_col = col
+                break
+        
+        if belle_id_col:
+            df_raw['belle_id_temp'] = pd.to_numeric(df_raw[belle_id_col], errors='coerce')
+            df_raw['unidade_nome'] = df_raw['belle_id_temp'].map(BELLE_ID_TO_UNIDADE)
+        else:
+            # Última tentativa: primeira coluna
+            df_raw['belle_id_temp'] = pd.to_numeric(df_raw.iloc[:, 0], errors='coerce')
+            df_raw['unidade_nome'] = df_raw['belle_id_temp'].map(BELLE_ID_TO_UNIDADE)
+    
+    # 3. FILTRAR POR DATA
+    df_filtrado = df_raw[
+        (df_raw['data'].notna()) &
+        (df_raw['data'] >= pd.to_datetime(data_inicio)) &
+        (df_raw['data'] <= pd.to_datetime(data_fim))
+    ].copy()
+    
+    if df_filtrado.empty:
+        st.warning(f"Nenhum evento encontrado entre {data_inicio} e {data_fim}")
+        return pd.DataFrame()
+    
+    # 4. APLICAR FILTRO DE UNIDADE (se especificado)
     if unidade_filtro:
         if isinstance(unidade_filtro, list):
-            df_raw = df_raw[df_raw['unidade'].isin([u.lower() for u in unidade_filtro])]
+            unidades_lower = [u.lower() for u in unidade_filtro]
+            mask = df_filtrado['unidade_nome'].apply(
+                lambda x: any(unid in str(x).lower() for unid in unidades_lower) if pd.notna(x) else False
+            )
+            df_filtrado = df_filtrado[mask]
         else:
-            df_raw = df_raw[df_raw['unidade'] == unidade_filtro.lower()]
+            unidade_lower = unidade_filtro.lower()
+            df_filtrado = df_filtrado[
+                df_filtrado['unidade_nome'].astype(str).str.lower().str.contains(unidade_lower, na=False)
+            ]
+    
+    # 5. CONSTRUIR NOME DO EVENTO
+    # Procurar colunas de Ação e Complemento
+    acao_col = None
+    complemento_col = None
+    
+    for col in df_raw.columns:
+        col_lower = col.lower()
+        if 'ação' in col_lower or 'acao' in col_lower:
+            if 'complemento' not in col_lower:
+                acao_col = col
+            else:
+                complemento_col = col
+    
+    # Se não encontrou, usar posições (comum: col 3 = Ação, col 4 = Complemento)
+    if acao_col is None and len(df_filtrado.columns) > 3:
+        acao_col = df_filtrado.columns[3]
+    if complemento_col is None and len(df_filtrado.columns) > 4:
+        complemento_col = df_filtrado.columns[4]
+    
+    if acao_col:
+        acao = df_filtrado[acao_col].astype(str)
+        if complemento_col:
+            complemento = df_filtrado[complemento_col].astype(str)
+            df_filtrado['evento'] = acao + ' - ' + complemento
+        else:
+            df_filtrado['evento'] = acao
+    else:
+        df_filtrado['evento'] = 'Evento'
+    
+    # Limpar nome do evento
+    df_filtrado['evento'] = (df_filtrado['evento']
+                              .str.replace(' - nan', '', regex=False)
+                              .str.replace('nan - ', '', regex=False)
+                              .str.strip(' - '))
+    
+    # 6. PARTICIPANTES
+    presenca_col = None
+    for col in df_filtrado.columns:
+        if 'presença' in col.lower() or 'presenca' in col.lower():
+            presenca_col = col
+            break
+    
+    if presenca_col:
+        df_filtrado['participantes'] = pd.to_numeric(df_filtrado[presenca_col], errors='coerce').fillna(1).astype(int)
+    elif len(df_filtrado.columns) > 6:
+        df_filtrado['participantes'] = pd.to_numeric(df_filtrado.iloc[:, 6], errors='coerce').fillna(1).astype(int)
+    else:
+        df_filtrado['participantes'] = 1
+    
+    # 7. TIPO DE EVENTO
+    if acao_col:
+        df_filtrado['tipo_evento'] = df_filtrado[acao_col].astype(str).str.extract(
+            r'(Treinamento|Workshop|Campanha|Reunião|Certificação|Lançamento)', 
+            expand=False
+        )
+        df_filtrado['tipo_evento'] = df_filtrado['tipo_evento'].fillna('Evento')
+    else:
+        df_filtrado['tipo_evento'] = 'Evento'
+    
+    # Renomear
+    df_filtrado = df_filtrado.rename(columns={'unidade_nome': 'unidade'})
+    
+    # Retornar colunas essenciais
+    colunas_retorno = ['data', 'evento', 'participantes', 'tipo_evento', 'unidade']
+    
+    # Adicionar belle_id_temp se existir
+    if 'belle_id_temp' in df_filtrado.columns:
+        colunas_retorno.insert(2, 'belle_id_temp')
+        df_filtrado = df_filtrado.rename(columns={'belle_id_temp': 'belle_id'})
+        colunas_retorno[2] = 'belle_id'
+    
+    return df_filtrado[[col for col in colunas_retorno if col in df_filtrado.columns]].copy()
+
+
+# =============================================================================
+# IMPORTANTE: Também preciso corrigir a função de chamados se necessário
+# =============================================================================
+
+@st.cache_data(ttl=3600)
+def load_chamados_sults(data_inicio, data_fim, unidade_filtro=None):
+    """
+    Carrega chamados Sults do BigQuery - VERSÃO CORRIGIDA
+    """
+    client = get_bigquery_client()
+    
+    filtro_unidade_sql = ""
+    if unidade_filtro:
+        if isinstance(unidade_filtro, list):
+            belle_ids = [UNIDADE_BELLE_MAP.get(u.lower()) for u in unidade_filtro]
+            belle_ids = [bid for bid in belle_ids if bid is not None]
+            if belle_ids:
+                belle_ids_str = ','.join([str(bid) for bid in belle_ids])
+                # CAST para INT64 para evitar erro de tipo
+                filtro_unidade_sql = f"AND CAST(unidade_id AS INT64) IN ({belle_ids_str})"
+        else:
+            belle_id = UNIDADE_BELLE_MAP.get(unidade_filtro.lower())
+            if belle_id:
+                filtro_unidade_sql = f"AND CAST(unidade_id AS INT64) = {belle_id}"
+    
+    query = f"""
+    SELECT 
+        id, titulo, unidade_id, unidade_nome, departamento_nome, assunto_nome,
+        situacao_descricao, status_sla_horas_comerciais,
+        DATE(aberto_sp) AS data_abertura, DATE(resolvido_sp) AS data_resolucao,
+        avaliacaoNota, categoria_avaliacao, chamado_finalizado
+    FROM `buddha-bigdata.analytics.chamados_analytics_completa`
+    WHERE DATE(aberto_sp) BETWEEN DATE('{data_inicio}') AND DATE('{data_fim}')
+        {filtro_unidade_sql}
+    ORDER BY aberto_sp DESC
+    """
+    
+    df_raw = client.query(query).to_dataframe()
+    
+    if df_raw.empty:
+        return df_raw
+    
+    # Converter unidade_id para int e mapear
+    df_raw['unidade_id'] = pd.to_numeric(df_raw['unidade_id'], errors='coerce')
+    df_raw['unidade'] = df_raw['unidade_id'].map(BELLE_ID_TO_UNIDADE)
+    df_raw = df_raw[df_raw['unidade'].notna()].copy()
+    df_raw['unidade'] = df_raw['unidade'].str.lower()
+    
+    df_raw = df_raw.rename(columns={
+        'data_abertura': 'data',
+        'assunto_nome': 'assunto',
+        'situacao_descricao': 'status',
+        'status_sla_horas_comerciais': 'prazo',
+        'titulo': 'descricao'
+    })
     
     return df_raw
-
 # -----------------------------------------------------------------------------
 # FUNÇÕES DE DADOS – GA4
 # -----------------------------------------------------------------------------
