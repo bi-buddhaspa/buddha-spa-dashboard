@@ -637,11 +637,28 @@ df_com_receita = df[df[valor_col] > 0]
 qtd_atendimentos_pagos = int(df_com_receita['id_venda'].nunique())
 ticket_medio = receita_total / qtd_atendimentos_pagos if qtd_atendimentos_pagos > 0 else 0
 
+# KPIs PRINCIPAIS COM AJUDA
 colk1, colk2, colk3, colk4 = st.columns(4)
-colk1.metric("Receita Total", formatar_moeda(receita_total))
-colk2.metric("Quantidade de Atendimentos", formatar_numero(qtd_atendimentos))
-colk3.metric("Clientes Únicos", formatar_numero(qtd_clientes))
-colk4.metric("Ticket Médio por Atendimento", formatar_moeda(ticket_medio))
+
+with colk1:
+    st.metric("Receita Total", formatar_moeda(receita_total))
+    with st.popover("ℹ️"):
+        st.caption("Soma de todos os valores líquidos dos atendimentos presenciais realizados no período selecionado.")
+
+with colk2:
+    st.metric("Quantidade de Atendimentos", formatar_numero(qtd_atendimentos))
+    with st.popover("ℹ️"):
+        st.caption("Número total de atendimentos únicos realizados (cada ID de venda conta como um atendimento).")
+
+with colk3:
+    st.metric("Clientes Únicos", formatar_numero(qtd_clientes))
+    with st.popover("ℹ️"):
+        st.caption("Número de clientes distintos que foram atendidos no período. Um mesmo cliente pode ter feito múltiplos atendimentos.")
+
+with colk4:
+    st.metric("Ticket Médio por Atendimento", formatar_moeda(ticket_medio))
+    with st.popover("ℹ️"):
+        st.caption("Valor médio gasto por atendimento. Calculado como: Receita Total ÷ Quantidade de Atendimentos que geraram receita.")
 
 # Mostrar unidades selecionadas
 if is_admin and unidades_selecionadas:
@@ -798,8 +815,25 @@ with tab_visao:
     
     st.markdown("---")
     
-    # NPS Score
-    st.subheader("NPS - Net Promoter Score")
+    # NPS Score COM AJUDA
+    col_titulo_nps, col_ajuda_nps = st.columns([0.97, 0.03])
+    with col_titulo_nps:
+        st.subheader("NPS - Net Promoter Score")
+    with col_ajuda_nps:
+        with st.popover("ℹ️"):
+            st.markdown("""
+            **O que é NPS?**
+            
+            Indicador de satisfação do cliente baseado na pergunta: 
+            "De 0 a 10, quanto você recomendaria nossos serviços?"
+            
+            - **Promotores (9-10)**: Clientes entusiastas que vão recomendar
+            - **Neutros (7-8)**: Clientes satisfeitos mas não entusiasmados
+            - **Detratores (0-6)**: Clientes insatisfeitos
+            
+            **Cálculo:** (% Promotores - % Detratores)
+            """)
+    
     with st.spinner("Carregando dados de NPS..."):
         try:
             if is_admin and unidades_selecionadas:
@@ -826,10 +860,26 @@ with tab_visao:
         perc_detratores = (detratores / total_respostas * 100) if total_respostas > 0 else 0
         
         col_nps1, col_nps2, col_nps3, col_nps4 = st.columns(4)
-        col_nps1.metric("NPS Score", formatar_percentual(nps_score))
-        col_nps2.metric("Promotores", f"{promotores} ({formatar_percentual(perc_promotores)})")
-        col_nps3.metric("Neutros", f"{neutros} ({formatar_percentual(perc_neutros)})")
-        col_nps4.metric("Detratores", f"{detratores} ({formatar_percentual(perc_detratores)})")
+        
+        with col_nps1:
+            st.metric("NPS Score", formatar_percentual(nps_score))
+            with st.popover("ℹ️"):
+                st.caption("Score geral calculado como (% Promotores - % Detratores). Varia de -100% a +100%.")
+        
+        with col_nps2:
+            st.metric("Promotores", f"{promotores} ({formatar_percentual(perc_promotores)})")
+            with st.popover("ℹ️"):
+                st.caption("Clientes que deram notas 9 ou 10. São os mais propensos a recomendar o Buddha Spa.")
+        
+        with col_nps3:
+            st.metric("Neutros", f"{neutros} ({formatar_percentual(perc_neutros)})")
+            with st.popover("ℹ️"):
+                st.caption("Clientes que deram notas 7 ou 8. Estão satisfeitos mas não entusiasmados.")
+        
+        with col_nps4:
+            st.metric("Detratores", f"{detratores} ({formatar_percentual(perc_detratores)})")
+            with st.popover("ℹ️"):
+                st.caption("Clientes que deram notas de 0 a 6. Indicam insatisfação e risco de não retorno.")
         
         # Gráfico de pizza NPS
         df_nps_dist = pd.DataFrame({
@@ -1035,7 +1085,12 @@ with tab_atend:
     st.markdown("---")
     
     # HEATMAP 1: Atendimentos por Dia da Semana vs Unidade
-    st.subheader("Mapa de Atendimentos - Dia da Semana vs Unidade")
+    col_titulo_heat1, col_ajuda_heat1 = st.columns([0.97, 0.03])
+    with col_titulo_heat1:
+        st.subheader("Mapa de Atendimentos - Dia da Semana vs Unidade")
+    with col_ajuda_heat1:
+        with st.popover("ℹ️"):
+            st.caption("Mapa de calor mostrando a quantidade de atendimentos por dia da semana em cada unidade. Cores mais intensas indicam maior volume de atendimentos.")
     
     # Adicionar dia da semana ao dataframe
     df_heatmap = df_detalhado.copy()
@@ -1099,7 +1154,12 @@ with tab_atend:
     st.markdown("---")
     
     # HEATMAP 2: Atendimentos por Dia da Semana vs Tipo de Serviço
-    st.subheader("Mapa de Atendimentos - Dia da Semana vs Tipo de Serviço")
+    col_titulo_heat2, col_ajuda_heat2 = st.columns([0.97, 0.03])
+    with col_titulo_heat2:
+        st.subheader("Mapa de Atendimentos - Dia da Semana vs Tipo de Serviço")
+    with col_ajuda_heat2:
+        with st.popover("ℹ️"):
+            st.caption("Mapa de calor mostrando os 10 serviços mais populares e em quais dias da semana eles têm maior demanda.")
     
     if 'nome_servico_simplificado' in df_heatmap.columns:
         # Pegar top 10 serviços
@@ -1158,14 +1218,39 @@ with tab_fin:
     st.subheader("Resumo Financeiro da Unidade")
     
     colf1, colf2, colf3 = st.columns(3)
-    colf1.metric("Receita Total (Atendimentos)", formatar_moeda(receita_total))
-    colf2.metric("Quantidade de Atendimentos", formatar_numero(qtd_atendimentos))
-    colf3.metric("Ticket Médio Unidade", formatar_moeda(ticket_medio))
+    
+    with colf1:
+        st.metric("Receita Total (Atendimentos)", formatar_moeda(receita_total))
+        with st.popover("ℹ️"):
+            st.caption("Receita total dos atendimentos presenciais (não inclui vouchers de ecommerce).")
+    
+    with colf2:
+        st.metric("Quantidade de Atendimentos", formatar_numero(qtd_atendimentos))
+        with st.popover("ℹ️"):
+            st.caption("Total de atendimentos únicos realizados.")
+    
+    with colf3:
+        st.metric("Ticket Médio Unidade", formatar_moeda(ticket_medio))
+        with st.popover("ℹ️"):
+            st.caption("Valor médio por atendimento na unidade.")
     
     st.markdown("---")
     
     # Distribuição de Receita (Pizza Chart)
-    st.subheader("Distribuição de Receita por Canal")
+    col_titulo_dist, col_ajuda_dist = st.columns([0.97, 0.03])
+    with col_titulo_dist:
+        st.subheader("Distribuição de Receita por Canal")
+    with col_ajuda_dist:
+        with st.popover("ℹ️"):
+            st.markdown("""
+            **Canais de Receita:**
+            
+            - **Vendas Locais**: Atendimentos pagos diretamente na unidade
+            - **Vouchers Utilizados**: Vouchers comprados no site e usados na unidade
+            - **Parcerias**: Vendas através de cupons e parcerias
+            
+            O faturamento total é a soma de vendas locais + vouchers.
+            """)
     
     with st.spinner("Carregando dados de ecommerce..."):
         try:
@@ -1194,10 +1279,26 @@ with tab_fin:
     
     # Cards de resumo
     cold1, cold2, cold3, cold4 = st.columns(4)
-    cold1.metric("Vendas Locais", formatar_moeda(receita_vendas_locais))
-    cold2.metric("Vouchers Utilizados", formatar_moeda(receita_voucher))
-    cold3.metric("Faturamento Total", formatar_moeda(faturamento_total))
-    cold4.metric("Parcerias", formatar_moeda(receita_parcerias))
+    
+    with cold1:
+        st.metric("Vendas Locais", formatar_moeda(receita_vendas_locais))
+        with st.popover("ℹ️"):
+            st.caption("Receita de atendimentos pagos diretamente na unidade (cartão, dinheiro, PIX, etc.).")
+    
+    with cold2:
+        st.metric("Vouchers Utilizados", formatar_moeda(receita_voucher))
+        with st.popover("ℹ️"):
+            st.caption("Valor dos vouchers do ecommerce que foram utilizados na sua unidade.")
+    
+    with cold3:
+        st.metric("Faturamento Total", formatar_moeda(faturamento_total))
+        with st.popover("ℹ️"):
+            st.caption("Soma de todas as receitas: Vendas Locais + Vouchers Utilizados.")
+    
+    with cold4:
+        st.metric("Parcerias", formatar_moeda(receita_parcerias))
+        with st.popover("ℹ️"):
+            st.caption("Receita de vouchers utilizados através de cupons de parcerias.")
     
     # Pizza chart de distribuição
     df_dist = pd.DataFrame({
@@ -1300,7 +1401,12 @@ with tab_fin:
     
     st.markdown("---")
     
-    st.subheader("Vouchers Mais Utilizados na Unidade")
+    col_titulo_vouchers_fin, col_ajuda_vouchers_fin = st.columns([0.97, 0.03])
+    with col_titulo_vouchers_fin:
+        st.subheader("Vouchers Mais Utilizados na Unidade")
+    with col_ajuda_vouchers_fin:
+        with st.popover("ℹ️"):
+            st.caption("Top 10 pacotes/serviços de vouchers que foram mais utilizados na sua unidade, ordenados por receita líquida.")
     
     if not df_ecom_dist.empty:
         if 'PACKAGE_NAME' in df_ecom_dist.columns:
@@ -1364,7 +1470,24 @@ with tab_fin:
 # ---------------------- TAB: MARKETING & ECOMMERCE -------------------------
 with tab_mkt:
     # BLOCO 1 – ECOMMERCE
-    st.subheader("Ecommerce – Vouchers Utilizados na Unidade")
+    col_titulo_ecom, col_ajuda_ecom = st.columns([0.97, 0.03])
+    with col_titulo_ecom:
+        st.subheader("Ecommerce – Vouchers Utilizados na Unidade")
+    with col_ajuda_ecom:
+        with st.popover("ℹ️"):
+            st.markdown("""
+            **Importante sobre Vouchers:**
+            
+            Os vouchers são vendidos no site geral do Buddha Spa e podem ser 
+            utilizados em qualquer unidade da rede.
+            
+            **Este dashboard mostra apenas:**
+            - Vouchers que foram **utilizados** na sua unidade
+            - Data considerada: quando o cliente **usou** o voucher (USED_DATE)
+            - Não mostra vouchers vendidos mas ainda não utilizados
+            
+            **AFILLIATION_NAME** indica em qual unidade o voucher foi usado.
+            """)
     
     with st.spinner("Carregando dados de vouchers utilizados..."):
         try:
@@ -1395,10 +1518,25 @@ with tab_mkt:
         receita_liquida_e = df_ecom['PRICE_NET'].fillna(0).sum()
         ticket_medio_e = receita_liquida_e / total_pedidos if total_pedidos > 0 else 0
         
-        colm1.metric("Pedidos Utilizados", formatar_numero(total_pedidos))
-        colm2.metric("Vouchers Utilizados", formatar_numero(total_vouchers))
-        colm3.metric("Receita Vouchers Utilizados", formatar_moeda(receita_liquida_e))
-        colm4.metric("Ticket Médio por Pedido", formatar_moeda(ticket_medio_e))
+        with colm1:
+            st.metric("Pedidos Utilizados", formatar_numero(total_pedidos))
+            with st.popover("ℹ️"):
+                st.caption("Número de pedidos (compras) cujos vouchers foram utilizados na sua unidade no período.")
+        
+        with colm2:
+            st.metric("Vouchers Utilizados", formatar_numero(total_vouchers))
+            with st.popover("ℹ️"):
+                st.caption("Total de vouchers usados. Um pedido pode ter múltiplos vouchers (ex: pacote com 4 sessões).")
+        
+        with colm3:
+            st.metric("Receita Vouchers Utilizados", formatar_moeda(receita_liquida_e))
+            with st.popover("ℹ️"):
+                st.caption("Valor líquido dos vouchers utilizados (após descontos e cupons).")
+        
+        with colm4:
+            st.metric("Ticket Médio por Pedido", formatar_moeda(ticket_medio_e))
+            with st.popover("ℹ️"):
+                st.caption("Valor médio por pedido: Receita Total ÷ Número de Pedidos.")
         
         st.markdown("### Top 10 Serviços / Pacotes Utilizados (Vouchers)")
         
@@ -1455,7 +1593,12 @@ with tab_mkt:
         st.markdown("---")
         
         # Análise Geográfica
-        st.subheader("Distribuição Geográfica - Vendas por Estado")
+        col_titulo_geo, col_ajuda_geo = st.columns([0.97, 0.03])
+        with col_titulo_geo:
+            st.subheader("Distribuição Geográfica - Vendas por Estado")
+        with col_ajuda_geo:
+            with st.popover("ℹ️"):
+                st.caption("Estados de onde vieram os clientes que utilizaram vouchers na sua unidade. Baseado no endereço de cobrança do pedido.")
         
         if 'Customer_State' in df_ecom.columns:
             df_geo = (
@@ -1493,7 +1636,24 @@ with tab_mkt:
     st.markdown("---")
     
     # BLOCO 2 – SITE / GA4 PÁGINAS
-    st.subheader("Site – Pageviews por Página (GA4)")
+    col_titulo_pages, col_ajuda_pages = st.columns([0.97, 0.03])
+    with col_titulo_pages:
+        st.subheader("Site – Pageviews por Página (GA4)")
+    with col_ajuda_pages:
+        with st.popover("ℹ️"):
+            st.markdown("""
+            **Pageviews (Visualizações de Página)**
+            
+            Número de vezes que páginas do site Buddha Spa foram visualizadas.
+            
+            **Páginas rastreadas:**
+            - Páginas de Franquias (informações sobre franquia)
+            - Páginas de Ecommerce (vouchers e pacotes)
+            - Páginas de Cursos (cursos oferecidos)
+            - Outras páginas institucionais
+            
+            Dados coletados via Google Analytics 4 (GA4).
+            """)
     
     with st.spinner("Carregando dados de páginas GA4..."):
         try:
@@ -1515,9 +1675,20 @@ with tab_mkt:
         total_usuarios = int(df_ga4_pages['usuarios'].sum())
         duracao_media = df_ga4_pages['duracao_media_sessao'].mean() if not df_ga4_pages['duracao_media_sessao'].isna().all() else 0
         
-        colg1.metric("Pageviews Totais (Site)", formatar_numero(total_pageviews))
-        colg2.metric("Usuários Totais", formatar_numero(total_usuarios))
-        colg3.metric("Duração Média da Sessão (s)", f"{duracao_media:,.1f}".replace('.', ','))
+        with colg1:
+            st.metric("Pageviews Totais (Site)", formatar_numero(total_pageviews))
+            with st.popover("ℹ️"):
+                st.caption("Total de visualizações de páginas no site buddhaspa.com.br durante o período.")
+        
+        with colg2:
+            st.metric("Usuários Totais", formatar_numero(total_usuarios))
+            with st.popover("ℹ️"):
+                st.caption("Número de visitantes únicos que acessaram o site. Um mesmo usuário pode gerar múltiplos pageviews.")
+        
+        with colg3:
+            st.metric("Duração Média da Sessão (s)", f"{duracao_media:,.1f}".replace('.', ','))
+            with st.popover("ℹ️"):
+                st.caption("Tempo médio que os usuários passaram navegando no site por sessão (em segundos).")
         
         st.markdown("### Pageviews por Tipo de Página")
         
@@ -1551,7 +1722,23 @@ with tab_mkt:
     st.markdown("---")
     
     # BLOCO 3 – SITE / GA4 TRÁFEGO
-    st.subheader("Site – Canais de Aquisição (GA4)")
+    col_titulo_trafego, col_ajuda_trafego = st.columns([0.97, 0.03])
+    with col_titulo_trafego:
+        st.subheader("Site – Canais de Aquisição (GA4)")
+    with col_ajuda_trafego:
+        with st.popover("ℹ️"):
+            st.markdown("""
+            **Canais de Aquisição**
+            
+            De onde vêm os visitantes do site:
+            
+            - **Direct**: Digitaram o URL diretamente ou acessaram por favoritos
+            - **Organic Search**: Buscas no Google (não pagas)
+            - **Paid Search**: Anúncios do Google Ads
+            - **Social**: Redes sociais (Instagram, Facebook, etc.)
+            - **Referral**: Links de outros sites
+            - **Email**: Campanhas de email marketing
+            """)
     
     with st.spinner("Carregando dados de tráfego GA4..."):
         try:
@@ -1568,9 +1755,20 @@ with tab_mkt:
         total_usuarios_t = int(df_ga4_traffic['usuarios'].sum())
         total_novos = int(df_ga4_traffic['novos_usuarios'].sum())
         
-        colt1.metric("Sessões Totais", formatar_numero(total_sessoes))
-        colt2.metric("Usuários Totais", formatar_numero(total_usuarios_t))
-        colt3.metric("Novos Usuários", formatar_numero(total_novos))
+        with colt1:
+            st.metric("Sessões Totais", formatar_numero(total_sessoes))
+            with st.popover("ℹ️"):
+                st.caption("Número de visitas ao site. Uma sessão pode incluir múltiplas pageviews.")
+        
+        with colt2:
+            st.metric("Usuários Totais", formatar_numero(total_usuarios_t))
+            with st.popover("ℹ️"):
+                st.caption("Visitantes únicos. Um usuário pode ter múltiplas sessões ao longo do tempo.")
+        
+        with colt3:
+            st.metric("Novos Usuários", formatar_numero(total_novos))
+            with st.popover("ℹ️"):
+                st.caption("Usuários que visitaram o site pela primeira vez no período analisado.")
         
         st.markdown("### Sessões por Canal")
         
@@ -1625,7 +1823,24 @@ with tab_mkt:
     st.markdown("---")
     
     # BLOCO 4 – EVENTOS GA4
-    st.subheader("Site – Eventos Principais (GA4)")
+    col_titulo_eventos, col_ajuda_eventos = st.columns([0.97, 0.03])
+    with col_titulo_eventos:
+        st.subheader("Site – Eventos Principais (GA4)")
+    with col_ajuda_eventos:
+        with st.popover("ℹ️"):
+            st.markdown("""
+            **Eventos no Site**
+            
+            Ações específicas dos usuários:
+            
+            - **form_submit**: Formulário enviado (contato, orçamento)
+            - **form_start**: Usuário começou a preencher formulário
+            - **click**: Cliques em elementos importantes
+            - **RD Popup e WhatsApp**: Cliques no botão WhatsApp
+            - **RD Landing Pages**: Interações em páginas de conversão
+            
+            Eventos ajudam a medir o engajamento e conversões.
+            """)
     
     with st.spinner("Carregando eventos GA4..."):
         try:
@@ -1673,7 +1888,22 @@ with tab_mkt:
     st.markdown("---")
     
     # BLOCO 5 – INSTAGRAM POSTS
-    st.subheader("Redes Sociais – Posts com Melhor Performance (Instagram)")
+    col_titulo_ig, col_ajuda_ig = st.columns([0.97, 0.03])
+    with col_titulo_ig:
+        st.subheader("Redes Sociais – Posts com Melhor Performance (Instagram)")
+    with col_ajuda_ig:
+        with st.popover("ℹ️"):
+            st.markdown("""
+            **Métricas de Posts do Instagram**
+            
+            - **Visualizações**: Quantas vezes o post foi visto
+            - **Curtidas**: Número de likes recebidos
+            - **Comentários**: Quantidade de comentários
+            - **Compartilhamentos**: Vezes que o post foi compartilhado
+            - **Alcance**: Número de contas únicas que viram o post
+            - **Impressões**: Total de vezes que o post foi exibido (pode contar múltiplas visualizações da mesma pessoa)
+            - **Engajamento**: Soma de curtidas + comentários (indica interação)
+            """)
     
     with st.spinner("Carregando posts do Instagram..."):
         try:
@@ -1695,10 +1925,25 @@ with tab_mkt:
         total_coment = int(df_ig['comentarios'].sum())
         total_impressoes = int(df_ig['impressoes'].sum()) if 'impressoes' in df_ig.columns else 0
         
-        coli1.metric("Total de Posts", formatar_numero(total_posts))
-        coli2.metric("Total de Curtidas", formatar_numero(total_curtidas))
-        coli3.metric("Total de Comentários", formatar_numero(total_coment))
-        coli4.metric("Total de Impressões", formatar_numero(total_impressoes))
+        with coli1:
+            st.metric("Total de Posts", formatar_numero(total_posts))
+            with st.popover("ℹ️"):
+                st.caption("Número total de posts publicados no período selecionado.")
+        
+        with coli2:
+            st.metric("Total de Curtidas", formatar_numero(total_curtidas))
+            with st.popover("ℹ️"):
+                st.caption("Soma de todas as curtidas recebidas nos posts do período.")
+        
+        with coli3:
+            st.metric("Total de Comentários", formatar_numero(total_coment))
+            with st.popover("ℹ️"):
+                st.caption("Soma de todos os comentários recebidos nos posts do período.")
+        
+        with coli4:
+            st.metric("Total de Impressões", formatar_numero(total_impressoes))
+            with st.popover("ℹ️"):
+                st.caption("Número total de vezes que os posts foram exibidos (incluindo múltiplas visualizações do mesmo usuário).")
         
         st.markdown("### Top 10 Posts por Engajamento (Curtidas + Comentários)")
         
@@ -1760,7 +2005,12 @@ with tab_mkt:
     st.markdown("---")
     
     # BLOCO 6 – SEGUIDORES INSTAGRAM
-    st.subheader("Redes Sociais – Crescimento de Seguidores (Instagram)")
+    col_titulo_seg, col_ajuda_seg = st.columns([0.97, 0.03])
+    with col_titulo_seg:
+        st.subheader("Redes Sociais – Crescimento de Seguidores (Instagram)")
+    with col_ajuda_seg:
+        with st.popover("ℹ️"):
+            st.caption("Evolução do número de seguidores do Instagram ao longo do tempo. Mostra o crescimento da base de seguidores no período selecionado.")
     
     with st.spinner("Carregando dados de seguidores..."):
         try:
@@ -1781,9 +2031,21 @@ with tab_mkt:
         perc_crescimento = (crescimento / seg_inicio * 100) if seg_inicio > 0 else 0
         
         cols1, cols2, cols3 = st.columns(3)
-        cols1.metric("Seguidores Atuais", formatar_numero(seg_fim))
-        cols2.metric("Crescimento no Período", f"{crescimento:+,}".replace(',', '.'), delta=formatar_percentual(perc_crescimento))
-        cols3.metric("Seguidores no Início", formatar_numero(seg_inicio))
+        
+        with cols1:
+            st.metric("Seguidores Atuais", formatar_numero(seg_fim))
+            with st.popover("ℹ️"):
+                st.caption("Número de seguidores no último dia do período selecionado.")
+        
+        with cols2:
+            st.metric("Crescimento no Período", f"{crescimento:+,}".replace(',', '.'), delta=formatar_percentual(perc_crescimento))
+            with st.popover("ℹ️"):
+                st.caption("Diferença entre seguidores no início e fim do período, em valores absolutos e percentuais.")
+        
+        with cols3:
+            st.metric("Seguidores no Início", formatar_numero(seg_inicio))
+            with st.popover("ℹ️"):
+                st.caption("Número de seguidores no primeiro dia do período selecionado.")
         
         st.markdown("### Evolução de Seguidores")
         
@@ -1805,7 +2067,24 @@ with tab_mkt:
     st.markdown("---")
     
     # BLOCO 7 – META ADS
-    st.subheader("Mídia Paga – Meta Ads")
+    col_titulo_meta, col_ajuda_meta = st.columns([0.97, 0.03])
+    with col_titulo_meta:
+        st.subheader("Mídia Paga – Meta Ads")
+    with col_ajuda_meta:
+        with st.popover("ℹ️"):
+            st.markdown("""
+            **Meta Ads (Facebook/Instagram Ads)**
+            
+            Dados das campanhas publicitárias em Facebook e Instagram.
+            
+            **Métricas principais:**
+            - **Impressões**: Quantas vezes o anúncio foi exibido
+            - **Alcance**: Número de pessoas únicas que viram o anúncio
+            - **Cliques**: Quantos cliques o anúncio recebeu
+            - **CTR**: Taxa de cliques (Cliques ÷ Impressões × 100)
+            - **CPC**: Custo por clique (Investimento ÷ Cliques)
+            - **ROI**: Retorno sobre investimento ((Receita - Investimento) ÷ Investimento × 100)
+            """)
     
     with st.spinner("Carregando dados de Meta Ads..."):
         try:
@@ -1830,10 +2109,25 @@ with tab_mkt:
         ctr = (total_clicks / total_imp * 100) if total_imp > 0 else 0
         roi = ((total_vendas_valor - total_invest) / total_invest * 100) if total_invest > 0 else 0
         
-        m1.metric("Impressões", formatar_numero(total_imp))
-        m2.metric("Cliques", formatar_numero(total_clicks), delta=f"CTR {formatar_percentual(ctr)}")
-        m3.metric("Investimento (R$)", formatar_moeda(total_invest))
-        m4.metric("Receita Atribuída (R$)", formatar_moeda(total_vendas_valor), delta=f"ROI {formatar_percentual(roi)}")
+        with m1:
+            st.metric("Impressões", formatar_numero(total_imp))
+            with st.popover("ℹ️"):
+                st.caption("Número de vezes que seus anúncios foram exibidos nas redes sociais.")
+        
+        with m2:
+            st.metric("Cliques", formatar_numero(total_clicks), delta=f"CTR {formatar_percentual(ctr)}")
+            with st.popover("ℹ️"):
+                st.caption("Número de cliques nos anúncios. CTR = taxa de cliques em relação às impressões.")
+        
+        with m3:
+            st.metric("Investimento (R$)", formatar_moeda(total_invest))
+            with st.popover("ℹ️"):
+                st.caption("Valor total investido nas campanhas de Meta Ads no período.")
+        
+        with m4:
+            st.metric("Receita Atribuída (R$)", formatar_moeda(total_vendas_valor), delta=f"ROI {formatar_percentual(roi)}")
+            with st.popover("ℹ️"):
+                st.caption("Receita gerada pelas campanhas. ROI mostra o retorno: valores positivos indicam lucro.")
         
         st.markdown("### Campanhas com Maior Investimento")
         
@@ -1915,7 +2209,12 @@ with tab_mkt:
 
 # ---------------------- TAB: SELF-SERVICE -------------------------
 with tab_selfservice:
-    st.subheader("Monte Sua Própria Análise")
+    col_titulo_self, col_ajuda_self = st.columns([0.97, 0.03])
+    with col_titulo_self:
+        st.subheader("Monte Sua Própria Análise")
+    with col_ajuda_self:
+        with st.popover("ℹ️"):
+            st.caption("Crie análises personalizadas selecionando as dimensões (como agrupar) e métricas (o que calcular). Ideal para extrair relatórios específicos.")
     
     c1, c2 = st.columns(2)
     
@@ -2064,6 +2363,11 @@ with tab_gloss:
     **Importante:** Os vouchers são vendidos no ecommerce geral (site Buddha Spa) e podem ser utilizados em qualquer unidade. 
     
     Neste dashboard, você vê apenas os **vouchers que foram utilizados na sua unidade**, não os vendidos. A data considerada é a `USED_DATE` (quando o cliente usou o voucher), não a `CREATED_DATE` (quando comprou).
+    
+    ### 💡 Dicas de Uso
+    
+    - Use os **ícones ℹ️** ao lado das métricas para ver explicações detalhadas
+    - Na aba **Self-Service**, você pode criar análises personalizadas
     """)
      
     st.caption("Buddha Spa Dashboard – Portal de Franqueados v2.0")
