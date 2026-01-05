@@ -572,7 +572,7 @@ st.sidebar.markdown("---")
 
 col1, col2 = st.sidebar.columns(2)
 data_inicio = col1.date_input("De:", value=datetime(2025, 1, 1), format="DD/MM/YYYY")
-data_fim = col2.date_input("Até:", value=datetime(2025, 12, 31), format="DD/MM/YYYY")
+data_fim = col2.date_input("Até:", value=datetime(2025, 1, 31), format="DD/MM/YYYY")
 
 if is_admin:
     try:
