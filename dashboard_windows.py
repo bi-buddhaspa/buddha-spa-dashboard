@@ -426,6 +426,94 @@ def load_ecommerce_data(data_inicio, data_fim, unidades_filtro=None):
     return client.query(query).to_dataframe()
 
 @st.cache_data(ttl=3600)
+def load_omnichannel_vouchers(data_inicio, data_fim, unidades_filtro=None):
+    client = get_bigquery_client()
+    
+    # Construir filtro de unidades usando AFILLIATION_NAME
+    filtro_unidade = ""
+    if unidades_filtro and len(unidades_filtro) > 0:
+        unidades_nomes = []
+        for u in unidades_filtro:
+            nome_sem_prefixo = u.replace('buddha spa - ', '').title()
+            unidades_nomes.append(nome_sem_prefixo)
+            unidades_nomes.append(u.title())
+        
+        unidades_str = ','.join([f"'{nome}'" for nome in unidades_nomes])
+        filtro_unidade = f"AND u.post_title IN ({unidades_str})"
+    
+    query = f"""
+    SELECT 
+        s.ID, 
+        s.NAME, 
+        s.STATUS, 
+        s.COUPONS, 
+        s.CREATED_DATE,
+        DATETIME(s.CREATED_DATE, "America/Sao_Paulo") AS CREATED_DATE_BRAZIL,
+        s.USED_DATE,
+        DATETIME(s.USED_DATE, "America/Sao_Paulo") AS USED_DATE_BRAZIL,
+        s.PRICE_NET, 
+        s.PRICE_GROSS, 
+        s.PRICE_REFOUND, 
+        s.KEY, 
+        s.ORDER_ID,
+        (SELECT p.NAME FROM `buddha-bigdata.raw.packages_raw` p WHERE p.ID = s.PACKAGE_ID) AS PACKAGE_NAME,
+        CAST(CAST(s.AFILLIATION_ID AS FLOAT64) AS INT64) AS AFILLIATION_ID,
+        u.post_title AS AFILLIATION_NAME,
+        (SELECT 
+            CONCAT(
+                MAX(CASE WHEN pm.meta_key = '_billing_first_name' THEN pm.meta_value END),
+                ' ',
+                MAX(CASE WHEN pm.meta_key = '_billing_last_name' THEN pm.meta_value END)
+            )
+         FROM `buddha-bigdata.raw.wp_posts` o 
+         LEFT JOIN `buddha-bigdata.raw.wp_postmeta` pm ON o.ID = pm.post_id
+         WHERE o.ID = CAST(CAST(s.ORDER_ID AS FLOAT64) AS INT64)
+        ) AS Customer_FullName,
+        (SELECT MAX(CASE WHEN pm.meta_key = '_billing_email' THEN pm.meta_value END)
+         FROM `buddha-bigdata.raw.wp_posts` o 
+         LEFT JOIN `buddha-bigdata.raw.wp_postmeta` pm ON o.ID = pm.post_id
+         WHERE o.ID = CAST(CAST(s.ORDER_ID AS FLOAT64) AS INT64)
+        ) AS Customer_Email,
+        (SELECT MAX(CASE WHEN pm.meta_key = '_billing_phone' THEN pm.meta_value END)
+         FROM `buddha-bigdata.raw.wp_posts` o 
+         LEFT JOIN `buddha-bigdata.raw.wp_postmeta` pm ON o.ID = pm.post_id
+         WHERE o.ID = CAST(CAST(s.ORDER_ID AS FLOAT64) AS INT64)
+        ) AS Customer_Phone,
+        (SELECT MAX(CASE WHEN usermeta.meta_key = 'billing_cpf' THEN usermeta.meta_value END)
+         FROM `buddha-bigdata.raw.wp_postmeta` pm 
+         LEFT JOIN `buddha-bigdata.raw.usermeta_raw` usermeta ON CAST(CAST(pm.meta_value AS FLOAT64) AS INT64) = usermeta.user_id
+         WHERE pm.meta_key = '_customer_user' AND pm.post_id = CAST(CAST(s.ORDER_ID AS FLOAT64) AS INT64)
+        ) AS Customer_CPF,
+        (SELECT MAX(CASE WHEN usermeta.meta_key = 'billing_cnpj' THEN usermeta.meta_value END)
+         FROM `buddha-bigdata.raw.wp_postmeta` pm 
+         LEFT JOIN `buddha-bigdata.raw.usermeta_raw` usermeta ON CAST(CAST(pm.meta_value AS FLOAT64) AS INT64) = usermeta.user_id
+         WHERE pm.meta_key = '_customer_user' AND pm.post_id = CAST(CAST(s.ORDER_ID AS FLOAT64) AS INT64)
+        ) AS Customer_CNPJ,
+        (SELECT MAX(CASE WHEN pm.meta_key = '_billing_city' THEN pm.meta_value END)
+         FROM `buddha-bigdata.raw.wp_posts` o 
+         LEFT JOIN `buddha-bigdata.raw.wp_postmeta` pm ON o.ID = pm.post_id
+         WHERE o.ID = CAST(CAST(s.ORDER_ID AS FLOAT64) AS INT64)
+        ) AS Customer_City,
+        (SELECT MAX(CASE WHEN pm.meta_key = '_billing_state' THEN pm.meta_value END)
+         FROM `buddha-bigdata.raw.wp_posts` o 
+         LEFT JOIN `buddha-bigdata.raw.wp_postmeta` pm ON o.ID = pm.post_id
+         WHERE o.ID = CAST(CAST(s.ORDER_ID AS FLOAT64) AS INT64)
+        ) AS Customer_State
+    FROM `buddha-bigdata.raw.ecommerce_raw` s
+    INNER JOIN `buddha-bigdata.raw.wp_posts` u 
+        ON u.post_type = 'unidade' 
+        AND u.ID = CAST(CAST(s.AFILLIATION_ID AS FLOAT64) AS INT64)
+        AND s.NAME LIKE CONCAT('% - ', u.post_title, '%')
+    WHERE 
+        DATE(DATETIME(s.CREATED_DATE, "America/Sao_Paulo")) BETWEEN DATE('{data_inicio}') AND DATE('{data_fim}')
+        AND (s.STATUS = '1' OR s.STATUS = '2' OR s.STATUS = '3')
+        AND s.AFILLIATION_ID IS NOT NULL
+        AND s.NAME NOT LIKE '%Voucher Experience%'
+        {filtro_unidade}
+    """
+    return client.query(query).to_dataframe()
+
+@st.cache_data(ttl=3600)
 def load_nps_data(data_inicio, data_fim, unidade_filtro=None):
     client = get_bigquery_client()
     
@@ -1635,6 +1723,244 @@ with tab_mkt:
     
     st.markdown("---")
     
+    # BLOCO 1.5 – VOUCHERS OMNICHANNEL (NOVA SEÇÃO)
+    col_titulo_omni, col_ajuda_omni = st.columns([0.97, 0.03])
+    with col_titulo_omni:
+        st.subheader("📊 Vouchers Omnichannel - Todos os Vouchers Vendidos")
+    with col_ajuda_omni:
+        with st.popover("ℹ️"):
+            st.markdown("""
+            **Vouchers Omnichannel**
+            
+            Visão completa de TODOS os vouchers vendidos para sua(s) unidade(s) no período selecionado.
+            
+            **Diferença para seção anterior:**
+            - Seção anterior: apenas vouchers **utilizados** (USED_DATE)
+            - Esta seção: todos os vouchers **vendidos** (CREATED_DATE)
+            
+            **Data considerada:** CREATED_DATE (data da compra do voucher)
+            """)
+    
+    with st.spinner("Carregando vouchers omnichannel..."):
+        try:
+            unidades_para_filtro = unidades_selecionadas if is_admin else [unidade_usuario.lower()]
+            df_omni = load_omnichannel_vouchers(data_inicio, data_fim, unidades_filtro=unidades_para_filtro)
+        except Exception as e:
+            st.error(f"Erro ao carregar vouchers omnichannel: {e}")
+            df_omni = pd.DataFrame()
+    
+    if df_omni.empty:
+        st.warning("Sem dados de vouchers omnichannel para o período selecionado.")
+    else:
+        # Converter colunas numéricas
+        df_omni['PRICE_GROSS'] = pd.to_numeric(df_omni['PRICE_GROSS'], errors='coerce')
+        df_omni['PRICE_NET'] = pd.to_numeric(df_omni['PRICE_NET'], errors='coerce')
+        df_omni['PRICE_REFOUND'] = pd.to_numeric(df_omni['PRICE_REFOUND'], errors='coerce')
+        
+        # Completar PACKAGE_NAME
+        if 'PACKAGE_NAME' in df_omni.columns:
+            df_omni['PACKAGE_NAME'] = df_omni['PACKAGE_NAME'].fillna(df_omni['NAME'])
+        else:
+            df_omni['PACKAGE_NAME'] = df_omni['NAME']
+        
+        # KPIs Principais
+        col_omni1, col_omni2, col_omni3, col_omni4 = st.columns(4)
+        
+        total_vouchers_vendidos = len(df_omni)
+        total_pedidos_vendidos = int(df_omni['ORDER_ID'].nunique())
+        receita_bruta_omni = df_omni['PRICE_GROSS'].fillna(0).sum()
+        receita_liquida_omni = df_omni['PRICE_NET'].fillna(0).sum()
+        
+        with col_omni1:
+            st.metric("Total de Vouchers Vendidos", formatar_numero(total_vouchers_vendidos))
+            with st.popover("ℹ️"):
+                st.caption("Total de vouchers vendidos para sua(s) unidade(s) no período, independente se foram usados ou não.")
+        
+        with col_omni2:
+            st.metric("Total de Pedidos", formatar_numero(total_pedidos_vendidos))
+            with st.popover("ℹ️"):
+                st.caption("Número de pedidos únicos. Um pedido pode conter múltiplos vouchers.")
+        
+        with col_omni3:
+            st.metric("Receita Bruta", formatar_moeda(receita_bruta_omni))
+            with st.popover("ℹ️"):
+                st.caption("Valor total antes de descontos e cupons.")
+        
+        with col_omni4:
+            st.metric("Receita Líquida", formatar_moeda(receita_liquida_omni))
+            with st.popover("ℹ️"):
+                st.caption("Valor efetivamente recebido após descontos e cupons.")
+        
+        st.markdown("---")
+        
+        # Gráficos
+        col_omni_g1, col_omni_g2 = st.columns(2)
+        
+        with col_omni_g1:
+            st.markdown("#### Vouchers por Status")
+            df_status_omni = (
+                df_omni.groupby('STATUS')
+                .agg(qtd=('ID', 'count'))
+                .reset_index()
+            )
+            
+            fig_status_omni = px.pie(
+                df_status_omni,
+                names='STATUS',
+                values='qtd',
+                labels={'STATUS': 'Status', 'qtd': 'Quantidade'}
+            )
+            fig_status_omni.update_traces(textposition='inside', textinfo='percent+label')
+            fig_status_omni.update_layout(paper_bgcolor='#F5F0E6', height=350)
+            st.plotly_chart(fig_status_omni, use_container_width=True, key="chart_status_omni")
+        
+        with col_omni_g2:
+            st.markdown("#### Vouchers por Unidade")
+            if 'AFILLIATION_NAME' in df_omni.columns:
+                df_unidade_omni = (
+                    df_omni.groupby('AFILLIATION_NAME')
+                    .agg(qtd=('ID', 'count'), receita=('PRICE_NET', 'sum'))
+                    .reset_index()
+                    .sort_values('receita', ascending=False)
+                    .head(10)
+                )
+                
+                fig_unidade_omni = px.bar(
+                    df_unidade_omni,
+                    x='receita',
+                    y='AFILLIATION_NAME',
+                    orientation='h',
+                    labels={'receita': 'Receita (R$)', 'AFILLIATION_NAME': 'Unidade'}
+                )
+                fig_unidade_omni.update_yaxes(autorange='reversed')
+                fig_unidade_omni.update_traces(marker_color='#8B0000')
+                fig_unidade_omni.update_layout(
+                    plot_bgcolor='#FFFFFF',
+                    paper_bgcolor='#F5F0E6',
+                    height=350,
+                    yaxis={'categoryorder': 'total descending'}
+                )
+                st.plotly_chart(fig_unidade_omni, use_container_width=True, key="chart_unidade_omni")
+        
+        st.markdown("---")
+        
+        # Top Produtos Vendidos
+        st.markdown("#### Top 10 Produtos Mais Vendidos (Omnichannel)")
+        
+        df_produtos_omni = (
+            df_omni.groupby('PACKAGE_NAME')
+            .agg(
+                qtd_vouchers=('ID', 'count'),
+                receita_bruta=('PRICE_GROSS', 'sum'),
+                receita_liquida=('PRICE_NET', 'sum')
+            )
+            .reset_index()
+            .sort_values('qtd_vouchers', ascending=False)
+            .head(10)
+        )
+        
+        col_prod_omni1, col_prod_omni2 = st.columns([2, 1])
+        
+        with col_prod_omni1:
+            df_produtos_omni['qtd_fmt_label'] = df_produtos_omni['qtd_vouchers'].apply(formatar_numero)
+            
+            fig_prod_omni = px.bar(
+                df_produtos_omni,
+                x='qtd_vouchers',
+                y='PACKAGE_NAME',
+                orientation='h',
+                text='qtd_fmt_label',
+                labels={'qtd_vouchers': 'Quantidade Vendida', 'PACKAGE_NAME': 'Produto'}
+            )
+            fig_prod_omni.update_yaxes(autorange='reversed')
+            fig_prod_omni.update_traces(marker_color='#8B0000', textposition='inside', textfont=dict(color='white', size=11))
+            fig_prod_omni.update_layout(
+                plot_bgcolor='#FFFFFF',
+                paper_bgcolor='#F5F0E6',
+                height=450,
+                yaxis={'categoryorder': 'total descending'}
+            )
+            st.plotly_chart(fig_prod_omni, use_container_width=True, key="chart_produtos_omni")
+        
+        with col_prod_omni2:
+            df_produtos_omni_display = df_produtos_omni.copy()
+            df_produtos_omni_display['qtd_vouchers_fmt'] = df_produtos_omni_display['qtd_vouchers'].apply(formatar_numero)
+            df_produtos_omni_display['receita_bruta_fmt'] = df_produtos_omni_display['receita_bruta'].apply(formatar_moeda)
+            df_produtos_omni_display['receita_liquida_fmt'] = df_produtos_omni_display['receita_liquida'].apply(formatar_moeda)
+            
+            st.dataframe(
+                df_produtos_omni_display[['PACKAGE_NAME', 'qtd_vouchers_fmt', 'receita_bruta_fmt', 'receita_liquida_fmt']].rename(columns={
+                    'PACKAGE_NAME': 'Produto',
+                    'qtd_vouchers_fmt': 'Qtd',
+                    'receita_bruta_fmt': 'R$ Bruto',
+                    'receita_liquida_fmt': 'R$ Líquido'
+                }),
+                use_container_width=True,
+                height=450
+            )
+        
+        st.markdown("---")
+        
+        # Análise de Cupons
+        if 'COUPONS' in df_omni.columns:
+            st.markdown("#### Performance de Cupons de Desconto")
+            
+            df_com_cupom_omni = df_omni[df_omni['COUPONS'].notna() & (df_omni['COUPONS'] != '')]
+            
+            if not df_com_cupom_omni.empty:
+                col_cup_omni1, col_cup_omni2, col_cup_omni3 = st.columns(3)
+                
+                vouchers_com_cupom_omni = len(df_com_cupom_omni)
+                perc_com_cupom_omni = (vouchers_com_cupom_omni / total_vouchers_vendidos * 100) if total_vouchers_vendidos > 0 else 0
+                receita_cupom_omni = df_com_cupom_omni['PRICE_NET'].sum()
+                desconto_total_omni = df_com_cupom_omni['PRICE_GROSS'].sum() - df_com_cupom_omni['PRICE_NET'].sum()
+                
+                with col_cup_omni1:
+                    st.metric("Vouchers com Cupom", f"{formatar_numero(vouchers_com_cupom_omni)} ({formatar_percentual(perc_com_cupom_omni)})")
+                
+                with col_cup_omni2:
+                    st.metric("Receita com Cupons", formatar_moeda(receita_cupom_omni))
+                
+                with col_cup_omni3:
+                    st.metric("Desconto Total Aplicado", formatar_moeda(desconto_total_omni))
+                
+                # Top cupons
+                df_cupons_omni = (
+                    df_com_cupom_omni.groupby('COUPONS')
+                    .agg(
+                        qtd_usos=('ID', 'count'),
+                        receita=('PRICE_NET', 'sum'),
+                        desconto_calc=('PRICE_GROSS', 'sum')
+                    )
+                    .reset_index()
+                )
+                df_cupons_omni['desconto'] = df_cupons_omni['desconto_calc'] - df_cupons_omni['receita']
+                df_cupons_omni = df_cupons_omni.sort_values('qtd_usos', ascending=False).head(10)
+                
+                df_cupons_omni['qtd_usos_fmt'] = df_cupons_omni['qtd_usos'].apply(formatar_numero)
+                
+                fig_cupons_omni = px.bar(
+                    df_cupons_omni,
+                    x='qtd_usos',
+                    y='COUPONS',
+                    orientation='h',
+                    text='qtd_usos_fmt',
+                    labels={'qtd_usos': 'Quantidade de Usos', 'COUPONS': 'Cupom'}
+                )
+                fig_cupons_omni.update_yaxes(autorange='reversed')
+                fig_cupons_omni.update_traces(marker_color='#8B0000', textposition='inside', textfont=dict(color='white', size=11))
+                fig_cupons_omni.update_layout(
+                    plot_bgcolor='#FFFFFF',
+                    paper_bgcolor='#F5F0E6',
+                    height=400,
+                    yaxis={'categoryorder': 'total descending'}
+                )
+                st.plotly_chart(fig_cupons_omni, use_container_width=True, key="chart_cupons_omni")
+            else:
+                st.info("Nenhum cupom foi utilizado no período.")
+    
+    st.markdown("---")
+    
     # BLOCO 2 – SITE / GA4 PÁGINAS
     col_titulo_pages, col_ajuda_pages = st.columns([0.97, 0.03])
     with col_titulo_pages:
@@ -2343,6 +2669,8 @@ with tab_gloss:
     
     **Vouchers Utilizados** – Vouchers do ecommerce que foram efetivamente utilizados na unidade (filtrados por `USED_DATE` e `AFILLIATION_NAME`).
     
+    **Vouchers Omnichannel** – Todos os vouchers vendidos para a unidade, independente se foram utilizados ou não (filtrados por `CREATED_DATE`).
+    
     **Distribuição de Receita** – Divisão da receita entre Vendas Locais, Vouchers Utilizados e Parcerias.
     
     **Pageviews (GA4)** – Visualizações de página no site / páginas-chave.
@@ -2360,9 +2688,9 @@ with tab_gloss:
     
     ### 🎫 Sobre Vouchers
     
-    **Importante:** Os vouchers são vendidos no ecommerce geral (site Buddha Spa) e podem ser utilizados em qualquer unidade. 
+    **Vouchers Utilizados:** Mostram apenas os vouchers que já foram utilizados na sua unidade (data: USED_DATE).
     
-    Neste dashboard, você vê apenas os **vouchers que foram utilizados na sua unidade**, não os vendidos. A data considerada é a `USED_DATE` (quando o cliente usou o voucher), não a `CREATED_DATE` (quando comprou).
+    **Vouchers Omnichannel:** Mostram todos os vouchers vendidos para sua unidade, independente se foram utilizados ou não (data: CREATED_DATE).
     
     ### 💡 Dicas de Uso
     
