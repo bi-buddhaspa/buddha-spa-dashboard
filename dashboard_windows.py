@@ -1727,7 +1727,7 @@ with tab_mkt:
     # BLOCO 1.5 – VOUCHERS OMNICHANNEL (NOVA SEÇÃO)
     col_titulo_omni, col_ajuda_omni = st.columns([0.97, 0.03])
     with col_titulo_omni:
-        st.subheader("📊 Vouchers Omnichannel - Todos os Vouchers Vendidos")
+        st.subheader("📊 Vouchers Omnichannel ")
     with col_ajuda_omni:
         with st.popover("ℹ️"):
             st.markdown("""
