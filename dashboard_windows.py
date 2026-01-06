@@ -1608,7 +1608,7 @@ with tab_mkt:
         ticket_medio_e = receita_liquida_e / total_pedidos if total_pedidos > 0 else 0
         
         with colm1:
-            st.metric("Pedidos Utilizados", formatar_numero(total_pedidos))
+            st.metric("Total de Vendas", formatar_numero(total_pedidos))
             with st.popover("ℹ️"):
                 st.caption("Número de pedidos (compras) cujos vouchers foram utilizados na sua unidade no período.")
         
@@ -1623,7 +1623,7 @@ with tab_mkt:
                 st.caption("Valor líquido dos vouchers utilizados (após descontos e cupons).")
         
         with colm4:
-            st.metric("Ticket Médio por Pedido", formatar_moeda(ticket_medio_e))
+            st.metric("Ticket Médio Vendas", formatar_moeda(ticket_medio_e))
             with st.popover("ℹ️"):
                 st.caption("Valor médio por pedido: Receita Total ÷ Número de Pedidos.")
         
