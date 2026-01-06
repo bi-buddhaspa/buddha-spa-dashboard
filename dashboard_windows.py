@@ -505,7 +505,8 @@ def load_omnichannel_vouchers(data_inicio, data_fim, unidades_filtro=None):
         AND u.ID = CAST(CAST(s.AFILLIATION_ID AS FLOAT64) AS INT64)
         AND s.NAME LIKE CONCAT('% - ', u.post_title, '%')
     WHERE 
-        DATE(DATETIME(s.CREATED_DATE, "America/Sao_Paulo")) BETWEEN DATE('{data_inicio}') AND DATE('{data_fim}')
+        s.CREATED_DATE >= TIMESTAMP('{data_inicio} 00:00:00', 'America/Sao_Paulo')
+        AND s.CREATED_DATE <= TIMESTAMP('{data_fim} 23:59:59', 'America/Sao_Paulo')
         AND (s.STATUS = '1' OR s.STATUS = '2' OR s.STATUS = '3')
         AND s.AFILLIATION_ID IS NOT NULL
         AND s.NAME NOT LIKE '%Voucher Experience%'
