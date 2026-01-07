@@ -1674,7 +1674,7 @@ with tab_mkt:
             
             st.dataframe(
                 df_serv_display[['ID', 'ORDER_ID', 'PACKAGE_NAME', 'receita_fmt']].rename(columns={
-                    'ID': 'ID Voucher',
+                    'KEY': 'ID Voucher',
                     'ORDER_ID': 'ID Venda',
                     'PACKAGE_NAME': 'Serviço / Pacote',
                     'receita_fmt': 'Receita Líquida'
