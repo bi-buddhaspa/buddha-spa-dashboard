@@ -1673,7 +1673,7 @@ with tab_mkt:
             df_serv_display['receita_fmt'] = df_serv_display['PRICE_NET'].apply(formatar_moeda)
             
             st.dataframe(
-                df_serv_display[['ID', 'ORDER_ID', 'PACKAGE_NAME', 'receita_fmt']].rename(columns={
+                df_serv_display[['KEY', 'ORDER_ID', 'PACKAGE_NAME', 'receita_fmt']].rename(columns={
                     'KEY': 'ID Voucher',
                     'ORDER_ID': 'ID Venda',
                     'PACKAGE_NAME': 'Serviço / Pacote',
