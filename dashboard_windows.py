@@ -1681,7 +1681,7 @@ with tab_mkt:
             df_display_final = df_serv_display[['KEY', 'ORDER_ID', 'PACKAGE_NAME', 'receita_fmt']].copy()
             df_display_final = df_display_final.fillna('')  # Agora sim, converte NULL para string vazia
             
-             st.dataframe(
+            st.dataframe(
                 df_serv_display[['KEY', 'ORDER_ID', 'PACKAGE_NAME', 'receita_fmt']].rename(columns={
                     'KEY': 'ID Voucher',
                     'ORDER_ID': 'ID Venda',
