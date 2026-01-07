@@ -1664,24 +1664,24 @@ with tab_mkt:
             )
             st.plotly_chart(fig_serv, use_container_width=True, key="chart_vouchers_mkt")
         
-       with col_b:
-    # Pegar top 10 serviços para filtrar
-    top_servicos = df_serv.head(10)['PACKAGE_NAME'].tolist()
-    
-    # Criar tabela detalhada apenas com vouchers desses top 10 serviços
-    df_serv_display = df_ecom[df_ecom['PACKAGE_NAME'].isin(top_servicos)].copy()
-    df_serv_display['receita_fmt'] = df_serv_display['PRICE_NET'].apply(formatar_moeda)
-    
-    st.dataframe(
-        df_serv_display[['ID', 'ORDER_ID', 'PACKAGE_NAME', 'receita_fmt']].rename(columns={
-            'ID': 'ID Voucher',
-            'ORDER_ID': 'ID Venda',
-            'PACKAGE_NAME': 'Serviço / Pacote',
-            'receita_fmt': 'Receita Líquida'
-        }),
-        use_container_width=True,
-        height=450
-    )
+        with col_b:
+            # Pegar top 10 serviços para filtrar
+            top_servicos = df_serv.head(10)['PACKAGE_NAME'].tolist()
+            
+            # Criar tabela detalhada apenas com vouchers desses top 10 serviços
+            df_serv_display = df_ecom[df_ecom['PACKAGE_NAME'].isin(top_servicos)].copy()
+            df_serv_display['receita_fmt'] = df_serv_display['PRICE_NET'].apply(formatar_moeda)
+            
+            st.dataframe(
+                df_serv_display[['ID', 'ORDER_ID', 'PACKAGE_NAME', 'receita_fmt']].rename(columns={
+                    'ID': 'ID Voucher',
+                    'ORDER_ID': 'ID Venda',
+                    'PACKAGE_NAME': 'Serviço / Pacote',
+                    'receita_fmt': 'Receita Líquida'
+                }),
+                use_container_width=True,
+                height=450
+            )
         
         st.markdown("---")
         
