@@ -1665,14 +1665,23 @@ with tab_mkt:
             st.plotly_chart(fig_serv, use_container_width=True, key="chart_vouchers_mkt")
         
         with col_b:
-            # Pegar top 10 serviços para filtrar
-            top_servicos = df_serv.head(10)['PACKAGE_NAME'].tolist()
+            df_serv_display = df_ecom.copy()
+            # Formatar receita (manter NULL como está, só formatar os valores válidos)
+            df_serv_display['receita_fmt'] = df_serv_display['PRICE_NET'].apply(
+                lambda x: formatar_moeda(x) if pd.notna(x) else ''
+            )
+            if 'USED_DATE_BRAZIL' in df_serv_display.columns:
+                df_serv_display = df_serv_display.sort_values('USED_DATE_BRAZIL', ascending=False)
+                 # RESETAR O ÍNDICE para ficar sequencial de 0 até 444
+            df_serv_display = df_serv_display.reset_index(drop=True)
+                # Mostrar informação de debug
+            st.caption(f"📊 Total de vouchers na tabela: {len(df_serv_display)}")
+
+                # Preparar colunas (converter NaN para string vazia para exibição)
+            df_display_final = df_serv_display[['KEY', 'ORDER_ID', 'PACKAGE_NAME', 'receita_fmt']].copy()
+            df_display_final = df_display_final.fillna('')  # Agora sim, converte NULL para string vazia
             
-            # Criar tabela detalhada apenas com vouchers desses top 10 serviços
-            df_serv_display = df_ecom[df_ecom['PACKAGE_NAME'].isin(top_servicos)].copy()
-            df_serv_display['receita_fmt'] = df_serv_display['PRICE_NET'].apply(formatar_moeda)
-            
-            st.dataframe(
+             st.dataframe(
                 df_serv_display[['KEY', 'ORDER_ID', 'PACKAGE_NAME', 'receita_fmt']].rename(columns={
                     'KEY': 'ID Voucher',
                     'ORDER_ID': 'ID Venda',
