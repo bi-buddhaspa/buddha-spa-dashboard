@@ -231,7 +231,7 @@ if not st.session_state.autenticado:
     col_logo_login, col_space = st.columns([1, 3])
     
     with col_logo_login:
-        st.image("https://tse1.mm.bing.net/th/id/OIP.ysP6LVMsrdvd836Dha4f4AwHaHa?rs=1&pid=ImgDetMain&o=7&rm=3", width=200)
+        st.image("https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTkFQZ7QiSmOpEWC_9Ndsuqx_-roUMRJJkCvw&s", width=200)
     
     st.markdown("""
         <div style='text-align: center; padding: 20px;'>
@@ -711,7 +711,7 @@ valor_col = 'valor_liquido'
 col_logo, col_title = st.columns([1, 5])
 
 with col_logo:
-    st.image("https://tse1.mm.bing.net/th/id/OIP.ysP6LVMsrdvd836Dha4f4AwHaHa?rs=1&pid=ImgDetMain&o=7&rm=3", width=200)
+    st.image("https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTkFQZ7QiSmOpEWC_9Ndsuqx_-roUMRJJkCvw&s", width=200)
 
 with col_title:
     st.title("Buddha Spa - Dashboard de Unidades")
