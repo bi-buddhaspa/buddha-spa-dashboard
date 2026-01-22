@@ -1,3 +1,109 @@
+"""
+═══════════════════════════════════════════════════════════════════════════════
+BUDDHA SPA - DASHBOARD DE FRANQUEADOS
+Portal Analítico para Gestão de Unidades
+═══════════════════════════════════════════════════════════════════════════════
+
+VERSÃO: 3.0 - Completo e Documentado
+DATA: Janeiro 2026
+AUTOR: Leandro Santos & Claude AI
+
+═══════════════════════════════════════════════════════════════════════════════
+📊 COMO FUNCIONA O CÁLCULO DA RECEITA TOTAL
+═══════════════════════════════════════════════════════════════════════════════
+
+A Receita Total mostrada no dashboard vem de 3 ORIGENS diferentes:
+
+1. 🏪 BELLE (Sistema Local)
+   - Atendimentos pagos DIRETAMENTE na unidade
+   - Cliente chega, faz o serviço, paga no local (cartão/dinheiro/PIX)
+   - Registrado no sistema Belle (sistema de gestão local da unidade)
+   - Exemplo: R$ 139.660,00
+
+2. 🛒 ECOMMERCE (Vouchers SEM Cupom)
+   - Cliente compra voucher no SITE Buddha Spa
+   - NÃO usa cupom de desconto
+   - Vai na unidade e USA o voucher
+   - Terapeuta atende o cliente normalmente
+   - Receita conta para a unidade onde foi USADO
+   - Exemplo: R$ 81.332,04
+
+3. 🤝 PARCERIAS (Vouchers COM Cupom)
+   - Cliente compra voucher no SITE Buddha Spa
+   - USA cupom de desconto de parceiro/empresa
+   - Vai na unidade e USA o voucher
+   - Receita conta para a unidade onde foi USADO
+   - Exemplo: R$ 27.930,97
+
+RECEITA TOTAL = Belle + Ecommerce + Parcerias
+RECEITA TOTAL = R$ 139.660,00 + R$ 81.332,04 + R$ 27.930,97
+RECEITA TOTAL = R$ 248.923,01 ✅
+
+═══════════════════════════════════════════════════════════════════════════════
+🔍 POR QUE OS VALORES PODEM PARECER DIFERENTES?
+═══════════════════════════════════════════════════════════════════════════════
+
+Você pode ver valores diferentes em diferentes partes do dashboard:
+
+1. "PRINCIPAIS SERVIÇOS" mostra R$ 112.994,00 e 1.141 atendimentos
+   POR QUÊ É DIFERENTE?
+   - O gráfico mostra apenas os TOP 15 serviços mais vendidos
+   - Não mostra TODOS os serviços
+   - É um recorte para facilitar a visualização
+   - Se somar TODOS os serviços, daria R$ 139.660,00 (Belle completo)
+
+2. "ECOMMERCE" mostra valores diferentes em lugares diferentes
+   POR QUÊ?
+   - Aba "Visão Geral": mostra parte do ecommerce (R$ 81.332,04)
+   - Aba "Marketing": mostra TODOS os vouchers utilizados (R$ 109.263,01)
+   - A diferença vem de vouchers com cupons de parceiros
+
+═══════════════════════════════════════════════════════════════════════════════
+📅 ENTENDENDO AS DATAS
+═══════════════════════════════════════════════════════════════════════════════
+
+VOUCHERS TÊM 2 DATAS IMPORTANTES:
+
+1. CREATED_DATE (Data de Compra)
+   - Quando o cliente COMPROU o voucher no site
+   - Usado na aba "Vouchers Omnichannel"
+   - Mostra: "Quantos vouchers foram VENDIDOS para minha unidade?"
+
+2. USED_DATE (Data de Uso)
+   - Quando o cliente FOI NA UNIDADE e USOU o voucher
+   - Usado na aba "Ecommerce - Vouchers Utilizados"
+   - Mostra: "Quantos vouchers foram ATENDIDOS na minha unidade?"
+
+EXEMPLO:
+- Cliente compra voucher em 15/janeiro (CREATED_DATE)
+- Cliente usa na unidade em 20/janeiro (USED_DATE)
+- No dashboard aparece em 20/janeiro (quando gerou o atendimento)
+
+═══════════════════════════════════════════════════════════════════════════════
+🎯 MÉTRICAS PRINCIPAIS
+═══════════════════════════════════════════════════════════════════════════════
+
+1. RECEITA TOTAL (R$ 248.923,01)
+   - Soma de TODAS as origens: Belle + Ecommerce + Parcerias
+   - Todo o dinheiro que entrou na unidade no período
+
+2. QUANTIDADE DE ATENDIMENTOS (1.304)
+   - Quantos atendimentos únicos foram realizados
+   - Conta cada ID de venda = 1 atendimento
+   - Inclui APENAS Belle (presenciais diretos)
+
+3. CLIENTES ÚNICOS (1.093)
+   - Quantos clientes DIFERENTES foram atendidos
+   - João fez 3 massagens = 3 atendimentos, mas 1 cliente único
+
+4. TICKET MÉDIO (R$ 227,83)
+   - Receita Belle ÷ Atendimentos Pagos
+   - Usa APENAS Belle porque vouchers já foram pagos antes
+   - Mede: "Quanto o cliente gasta POR ATENDIMENTO na unidade?"
+
+═══════════════════════════════════════════════════════════════════════════════
+"""
+
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -1417,8 +1523,12 @@ with tab_atend:
             color='nome_servico_simplificado',
             barmode='group',
             labels={'dia_semana': 'Dia da Semana', 'qtd_atendimentos': 'Atendimentos', 'nome_servico_simplificado': 'Serviço'},
-            category_orders={'dia_semana': dias_ordem}
+            category_orders={'dia_semana': dias_ordem},
+            text='qtd_atendimentos'  # ADICIONADO: Rótulos nas barras
         )
+        
+        # ADICIONADO: Configurar posição e tamanho dos rótulos
+        fig_bar2.update_traces(textposition='outside', textfont=dict(size=9))
         
         fig_bar2.update_layout(
             plot_bgcolor='#FFFFFF',
