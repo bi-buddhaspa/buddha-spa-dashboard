@@ -181,7 +181,7 @@ def formatar_percentual(valor):
         return "0,00%"
     return f"{valor:.2f}%".replace('.', ',')
 
-def adicionar_totalizador(df, colunas_numericas, primeira_coluna=''):
+def adicionar_totalizador(df, colunas_numericas, primeira_coluna='', calcular_ticket_medio=False):
     """
     Adiciona linha de total ao dataframe
     
@@ -189,6 +189,7 @@ def adicionar_totalizador(df, colunas_numericas, primeira_coluna=''):
         df: DataFrame original
         colunas_numericas: lista de colunas que devem ser somadas
         primeira_coluna: nome da primeira coluna (onde aparecerá 'TOTAL')
+        calcular_ticket_medio: se True, recalcula ticket médio no total
     """
     if df.empty:
         return df
@@ -200,7 +201,14 @@ def adicionar_totalizador(df, colunas_numericas, primeira_coluna=''):
             if df[col].dtype in ['int64', 'float64']:
                 total_row[col] = df[col].sum()
             else:
-                # Se já está formatado como string, tentar extrair número
+                total_row[col] = ''
+        elif col == 'ticket_medio' and calcular_ticket_medio:
+            # Recalcular ticket médio se solicitado
+            if 'receita' in df.columns and 'qtd_atendimentos' in df.columns:
+                total_receita = df['receita'].sum()
+                total_qtd = df['qtd_atendimentos'].sum()
+                total_row[col] = total_receita / total_qtd if total_qtd > 0 else 0
+            else:
                 total_row[col] = ''
         else:
             # Primeira coluna recebe 'TOTAL'
@@ -737,6 +745,35 @@ data_col = 'data_atendimento'
 valor_col = 'valor_liquido'
 
 # -----------------------------------------------------------------------------
+# CARREGAR DADOS DE ECOMMERCE PARA CALCULAR RECEITA TOTAL
+# -----------------------------------------------------------------------------
+with st.spinner("Calculando faturamento total..."):
+    try:
+        unidades_para_filtro = unidades_selecionadas if is_admin else [unidade_usuario.lower()]
+        df_ecom_fat = load_ecommerce_data(data_inicio, data_fim, unidades_filtro=unidades_para_filtro)
+    except Exception as e:
+        st.error(f"Erro ao carregar ecommerce: {e}")
+        df_ecom_fat = pd.DataFrame()
+
+# Calcular receitas por origem
+receita_belle = df[valor_col].sum()  # Receita dos atendimentos presenciais
+receita_ecommerce = 0
+receita_parceiro = 0
+
+if not df_ecom_fat.empty:
+    df_ecom_fat['PRICE_NET'] = pd.to_numeric(df_ecom_fat['PRICE_NET'], errors='coerce')
+    
+    # Separar vouchers com e sem cupom
+    df_ecom_sem_cupom = df_ecom_fat[df_ecom_fat['COUPONS'].isna() | (df_ecom_fat['COUPONS'] == '')]
+    df_ecom_com_cupom = df_ecom_fat[df_ecom_fat['COUPONS'].notna() & (df_ecom_fat['COUPONS'] != '')]
+    
+    receita_ecommerce = df_ecom_sem_cupom['PRICE_NET'].fillna(0).sum()
+    receita_parceiro = df_ecom_com_cupom['PRICE_NET'].fillna(0).sum()
+
+# RECEITA TOTAL = Belle + Ecommerce + Parcerias
+receita_total = receita_belle + receita_ecommerce + receita_parceiro
+
+# -----------------------------------------------------------------------------
 # HEADER / KPIs
 # -----------------------------------------------------------------------------
 col_logo, col_title = st.columns([1, 5])
@@ -748,14 +785,13 @@ with col_title:
     st.title("Buddha Spa - Dashboard de Unidades")
     st.caption(f"Período: {data_inicio.strftime('%d/%m/%Y')} a {data_fim.strftime('%d/%m/%Y')}")
 
-receita_total = df[valor_col].sum()
 qtd_atendimentos = int(df['id_venda'].nunique())
 qtd_clientes = int(df['nome_cliente'].nunique()) if 'nome_cliente' in df.columns else 0
 
 # Calcular ticket médio apenas com atendimentos que geraram receita
 df_com_receita = df[df[valor_col] > 0]
 qtd_atendimentos_pagos = int(df_com_receita['id_venda'].nunique())
-ticket_medio = receita_total / qtd_atendimentos_pagos if qtd_atendimentos_pagos > 0 else 0
+ticket_medio = receita_belle / qtd_atendimentos_pagos if qtd_atendimentos_pagos > 0 else 0
 
 # KPIs PRINCIPAIS COM AJUDA
 colk1, colk2, colk3, colk4 = st.columns(4)
@@ -763,7 +799,7 @@ colk1, colk2, colk3, colk4 = st.columns(4)
 with colk1:
     st.metric("Receita Total", formatar_moeda(receita_total))
     with st.popover("ℹ️"):
-        st.caption("Soma de todos os valores líquidos dos atendimentos presenciais realizados no período selecionado.")
+        st.caption("Soma de todas as receitas: Belle (Sistema Local) + Ecommerce (Vouchers) + Parcerias (Cupons)")
 
 with colk2:
     st.metric("Quantidade de Atendimentos", formatar_numero(qtd_atendimentos))
@@ -778,7 +814,7 @@ with colk3:
 with colk4:
     st.metric("Ticket Médio por Atendimento", formatar_moeda(ticket_medio))
     with st.popover("ℹ️"):
-        st.caption("Valor médio gasto por atendimento. Calculado como: Receita Total ÷ Quantidade de Atendimentos que geraram receita.")
+        st.caption("Valor médio gasto por atendimento (Belle). Calculado como: Receita Belle ÷ Quantidade de Atendimentos que geraram receita.")
 
 # Mostrar unidades selecionadas
 if is_admin and unidades_selecionadas:
@@ -793,27 +829,38 @@ with st.expander("📊 De onde vem a Receita Total?", expanded=False):
     st.markdown(f"""
     ### Como calculamos os **{formatar_moeda(receita_total)}**?
     
-    A Receita Total é composta por todas as vendas de **serviços** realizadas na sua unidade durante o período selecionado.
+    A Receita Total é composta por **três origens** de faturamento:
+    
+    #### 💰 Composição da Receita Total:
+    
+    1. **🏪 Belle (Sistema Local): {formatar_moeda(receita_belle)}**
+       - Atendimentos pagos diretamente na unidade
+       - Formas de pagamento: dinheiro, cartão, PIX, etc.
+    
+    2. **🛒 Ecommerce (Vouchers): {formatar_moeda(receita_ecommerce)}**
+       - Vouchers comprados online e utilizados na unidade
+       - Sem cupons de desconto
+    
+    3. **🤝 Parcerias (Cupons): {formatar_moeda(receita_parceiro)}**
+       - Vendas através de cupons de parceiros
+       - Vouchers utilizados com desconto
     
     #### 📍 O que está incluído:
     
-    **Atendimentos Presenciais Pagos**
+    **Atendimentos Presenciais Pagos (Belle)**
     - Todos os serviços realizados e pagos na unidade
-    - Formas de pagamento: dinheiro, cartão, PIX, etc.
     - Apenas o **valor líquido** (já descontado impostos e taxas)
+    
+    **Vouchers Utilizados (Ecommerce + Parcerias)**
+    - Vouchers comprados no site e utilizados na sua unidade
+    - Baseado na data de utilização (USED_DATE)
     
     #### 🔍 Detalhamento:
     
     - **Período**: {data_inicio.strftime('%d/%m/%Y')} a {data_fim.strftime('%d/%m/%Y')}
     - **Total de atendimentos**: {formatar_numero(qtd_atendimentos)}
     - **Clientes únicos**: {formatar_numero(qtd_clientes)}
-    - **Ticket médio**: {formatar_moeda(ticket_medio)}
-    
-    #### ✅ Incluído na receita:
-    - Massagens e terapias
-    - Tratamentos faciais e corporais
-    - Pacotes de serviços
-    - Day spa
+    - **Ticket médio (Belle)**: {formatar_moeda(ticket_medio)}
     
     #### ❌ NÃO incluído:
     - Produtos vendidos (cosméticos, óleos, etc.)
@@ -1176,11 +1223,12 @@ with tab_atend:
         # Mantive a tabela de performance agregada (todas unidades)
         st.markdown("### Tabela de Performance")
         
-        # Adicionar totalizador ANTES de formatar
+        # Adicionar totalizador ANTES de formatar (com recalculo de ticket médio)
         df_terap_com_total = adicionar_totalizador(
             df_terap, 
-            colunas_numericas=['receita', 'qtd_atendimentos', 'clientes_unicos', 'ticket_medio'],
-            primeira_coluna='unidade'
+            colunas_numericas=['receita', 'qtd_atendimentos', 'clientes_unicos'],
+            primeira_coluna='unidade',
+            calcular_ticket_medio=True
         )
         
         # Agora formatar
@@ -1241,11 +1289,26 @@ with tab_atend:
             st.plotly_chart(fig_s, use_container_width=True, key="chart_principais_servicos")
         
         with cols2:
+            # Adicionar totalizador
+            df_servicos_com_total = adicionar_totalizador(
+                df_servicos,
+                colunas_numericas=['receita', 'qtd'],
+                primeira_coluna='nome_servico_simplificado'
+            )
+            
             # Formatar tabela
-            df_servicos_display = df_servicos.copy()
-            df_servicos_display['receita_fmt'] = df_servicos_display['receita'].apply(formatar_moeda)
-            df_servicos_display['qtd_fmt'] = df_servicos_display['qtd'].apply(formatar_numero)
-            df_servicos_display['perc_receita_fmt'] = df_servicos_display['perc_receita'].apply(lambda x: formatar_percentual(x*100))
+            df_servicos_display = df_servicos_com_total.copy()
+            df_servicos_display['receita_fmt'] = df_servicos_display['receita'].apply(
+                lambda x: formatar_moeda(x) if pd.notna(x) and x != '' else x
+            )
+            df_servicos_display['qtd_fmt'] = df_servicos_display['qtd'].apply(
+                lambda x: formatar_numero(x) if pd.notna(x) and x != '' else x
+            )
+            # Para percentual, só calcular para linhas não-total
+            df_servicos_display['perc_receita_fmt'] = df_servicos_display.apply(
+                lambda row: formatar_percentual(row['perc_receita']*100) if pd.notna(row.get('perc_receita')) and row.get('perc_receita') != '' else '100,00%' if row['nome_servico_simplificado'] == 'TOTAL' else '',
+                axis=1
+            )
             
             st.dataframe(
                 df_servicos_display[['nome_servico_simplificado', 'receita_fmt', 'qtd_fmt', 'perc_receita_fmt']].rename(columns={
@@ -1302,9 +1365,11 @@ with tab_atend:
         color='unidade',
         barmode='group',
         labels={'dia_semana': 'Dia da Semana', 'qtd_atendimentos': 'Atendimentos', 'unidade': 'Unidade'},
-        category_orders={'dia_semana': dias_ordem}
+        category_orders={'dia_semana': dias_ordem},
+        text='qtd_atendimentos'
     )
     
+    fig_bar1.update_traces(textposition='outside', textfont=dict(size=10))
     fig_bar1.update_layout(
         plot_bgcolor='#FFFFFF',
         paper_bgcolor='#F5F0E6',
@@ -1373,9 +1438,9 @@ with tab_fin:
     colf1, colf2, colf3 = st.columns(3)
     
     with colf1:
-        st.metric("Receita Total (Atendimentos)", formatar_moeda(receita_total))
+        st.metric("Receita Total (Atendimentos)", formatar_moeda(receita_belle))
         with st.popover("ℹ️"):
-            st.caption("Receita total dos atendimentos presenciais (não inclui vouchers de ecommerce).")
+            st.caption("Receita total dos atendimentos presenciais (Belle - não inclui vouchers de ecommerce).")
     
     with colf2:
         st.metric("Quantidade de Atendimentos", formatar_numero(qtd_atendimentos))
@@ -1385,7 +1450,7 @@ with tab_fin:
     with colf3:
         st.metric("Ticket Médio Unidade", formatar_moeda(ticket_medio))
         with st.popover("ℹ️"):
-            st.caption("Valor médio por atendimento na unidade.")
+            st.caption("Valor médio por atendimento na unidade (Belle).")
     
     st.markdown("---")
     
@@ -1402,29 +1467,6 @@ with tab_fin:
             - **Ecommerce (Vouchers)**: Vouchers comprados online e utilizados na unidade
             - **Parcerias (Cupons)**: Vendas através de cupons de parceiros
             """)
-    
-    with st.spinner("Calculando faturamento por origem..."):
-        try:
-            unidades_para_filtro = unidades_selecionadas if is_admin else [unidade_usuario.lower()]
-            df_ecom_fat = load_ecommerce_data(data_inicio, data_fim, unidades_filtro=unidades_para_filtro)
-        except Exception as e:
-            st.error(f"Erro ao carregar ecommerce: {e}")
-            df_ecom_fat = pd.DataFrame()
-    
-    # Calcular receitas por origem
-    receita_belle = receita_total  # Receita dos atendimentos presenciais
-    receita_ecommerce = 0
-    receita_parceiro = 0
-    
-    if not df_ecom_fat.empty:
-        df_ecom_fat['PRICE_NET'] = pd.to_numeric(df_ecom_fat['PRICE_NET'], errors='coerce')
-        
-        # Separar vouchers com e sem cupom
-        df_ecom_sem_cupom = df_ecom_fat[df_ecom_fat['COUPONS'].isna() | (df_ecom_fat['COUPONS'] == '')]
-        df_ecom_com_cupom = df_ecom_fat[df_ecom_fat['COUPONS'].notna() & (df_ecom_fat['COUPONS'] != '')]
-        
-        receita_ecommerce = df_ecom_sem_cupom['PRICE_NET'].fillna(0).sum()
-        receita_parceiro = df_ecom_com_cupom['PRICE_NET'].fillna(0).sum()
     
     faturamento_total_completo = receita_belle + receita_ecommerce + receita_parceiro
     
@@ -1610,9 +1652,20 @@ with tab_fin:
             st.plotly_chart(fig_sf, use_container_width=True, key="chart_servicos_fin")
         
         with colf_s2:
-            df_serv_fin_display = df_serv_fin.copy()
-            df_serv_fin_display['receita_fmt'] = df_serv_fin_display['receita'].apply(formatar_moeda)
-            df_serv_fin_display['qtd_fmt'] = df_serv_fin_display['qtd'].apply(formatar_numero)
+            # Adicionar totalizador
+            df_serv_fin_com_total = adicionar_totalizador(
+                df_serv_fin,
+                colunas_numericas=['receita', 'qtd'],
+                primeira_coluna='nome_servico_simplificado'
+            )
+            
+            df_serv_fin_display = df_serv_fin_com_total.copy()
+            df_serv_fin_display['receita_fmt'] = df_serv_fin_display['receita'].apply(
+                lambda x: formatar_moeda(x) if pd.notna(x) and x != '' else x
+            )
+            df_serv_fin_display['qtd_fmt'] = df_serv_fin_display['qtd'].apply(
+                lambda x: formatar_numero(x) if pd.notna(x) and x != '' else x
+            )
             
             st.dataframe(
                 df_serv_fin_display[['nome_servico_simplificado', 'receita_fmt', 'qtd_fmt']].rename(columns={
@@ -1676,9 +1729,20 @@ with tab_fin:
             st.plotly_chart(fig_ef, use_container_width=True, key="chart_vouchers_fin")
         
         with colf_e2:
-            df_ecom_top_display = df_ecom_top.copy()
-            df_ecom_top_display['qtde_vouchers_fmt'] = df_ecom_top_display['qtde_vouchers'].apply(formatar_numero)
-            df_ecom_top_display['receita_liquida_fmt'] = df_ecom_top_display['receita_liquida'].apply(formatar_moeda)
+            # Adicionar totalizador
+            df_ecom_top_com_total = adicionar_totalizador(
+                df_ecom_top,
+                colunas_numericas=['qtde_vouchers', 'receita_liquida'],
+                primeira_coluna='PACKAGE_NAME'
+            )
+            
+            df_ecom_top_display = df_ecom_top_com_total.copy()
+            df_ecom_top_display['qtde_vouchers_fmt'] = df_ecom_top_display['qtde_vouchers'].apply(
+                lambda x: formatar_numero(x) if pd.notna(x) and x != '' else x
+            )
+            df_ecom_top_display['receita_liquida_fmt'] = df_ecom_top_display['receita_liquida'].apply(
+                lambda x: formatar_moeda(x) if pd.notna(x) and x != '' else x
+            )
             
             st.dataframe(
                 df_ecom_top_display[['PACKAGE_NAME', 'qtde_vouchers_fmt', 'receita_liquida_fmt']].rename(columns={
@@ -1949,28 +2013,10 @@ with tab_mkt:
         
         st.markdown("---")
         
-        # Gráficos
-        col_omni_g1, col_omni_g2 = st.columns(2)
+        # Gráficos - REMOVENDO GRÁFICO DE STATUS
+        col_omni_g1 = st.columns(1)[0]
         
         with col_omni_g1:
-            st.markdown("#### Vouchers por Status")
-            df_status_omni = (
-                df_omni.groupby('STATUS')
-                .agg(qtd=('ID', 'count'))
-                .reset_index()
-            )
-            
-            fig_status_omni = px.pie(
-                df_status_omni,
-                names='STATUS',
-                values='qtd',
-                labels={'STATUS': 'Status', 'qtd': 'Quantidade'}
-            )
-            fig_status_omni.update_traces(textposition='inside', textinfo='percent+label')
-            fig_status_omni.update_layout(paper_bgcolor='#F5F0E6', height=350)
-            st.plotly_chart(fig_status_omni, use_container_width=True, key="chart_status_omni")
-        
-        with col_omni_g2:
             st.markdown("#### Vouchers por Unidade")
             if 'AFILLIATION_NAME' in df_omni.columns:
                 df_unidade_omni = (
@@ -1981,15 +2027,27 @@ with tab_mkt:
                     .head(10)
                 )
                 
-                fig_unidade_omni = px.bar(
+                # Adicionar totalizador
+                df_unidade_omni_com_total = adicionar_totalizador(
                     df_unidade_omni,
+                    colunas_numericas=['qtd', 'receita'],
+                    primeira_coluna='AFILLIATION_NAME'
+                )
+                
+                # Formatar para exibição no gráfico (sem a linha TOTAL)
+                df_unidade_omni_grafico = df_unidade_omni.copy()
+                df_unidade_omni_grafico['receita_fmt'] = df_unidade_omni_grafico['receita'].apply(formatar_moeda)
+                
+                fig_unidade_omni = px.bar(
+                    df_unidade_omni_grafico,
                     x='receita',
                     y='AFILLIATION_NAME',
                     orientation='h',
+                    text='receita_fmt',
                     labels={'receita': 'Receita (R$)', 'AFILLIATION_NAME': 'Unidade'}
                 )
                 fig_unidade_omni.update_yaxes(autorange='reversed')
-                fig_unidade_omni.update_traces(marker_color='#8B0000')
+                fig_unidade_omni.update_traces(marker_color='#8B0000', textposition='inside', textfont=dict(color='white', size=11))
                 fig_unidade_omni.update_layout(
                     plot_bgcolor='#FFFFFF',
                     paper_bgcolor='#F5F0E6',
@@ -2039,10 +2097,23 @@ with tab_mkt:
             st.plotly_chart(fig_prod_omni, use_container_width=True, key="chart_produtos_omni")
         
         with col_prod_omni2:
-            df_produtos_omni_display = df_produtos_omni.copy()
-            df_produtos_omni_display['qtd_vouchers_fmt'] = df_produtos_omni_display['qtd_vouchers'].apply(formatar_numero)
-            df_produtos_omni_display['receita_bruta_fmt'] = df_produtos_omni_display['receita_bruta'].apply(formatar_moeda)
-            df_produtos_omni_display['receita_liquida_fmt'] = df_produtos_omni_display['receita_liquida'].apply(formatar_moeda)
+            # Adicionar totalizador
+            df_produtos_omni_com_total = adicionar_totalizador(
+                df_produtos_omni,
+                colunas_numericas=['qtd_vouchers', 'receita_bruta', 'receita_liquida'],
+                primeira_coluna='PACKAGE_NAME'
+            )
+            
+            df_produtos_omni_display = df_produtos_omni_com_total.copy()
+            df_produtos_omni_display['qtd_vouchers_fmt'] = df_produtos_omni_display['qtd_vouchers'].apply(
+                lambda x: formatar_numero(x) if pd.notna(x) and x != '' else x
+            )
+            df_produtos_omni_display['receita_bruta_fmt'] = df_produtos_omni_display['receita_bruta'].apply(
+                lambda x: formatar_moeda(x) if pd.notna(x) and x != '' else x
+            )
+            df_produtos_omni_display['receita_liquida_fmt'] = df_produtos_omni_display['receita_liquida'].apply(
+                lambda x: formatar_moeda(x) if pd.notna(x) and x != '' else x
+            )
             
             st.dataframe(
                 df_produtos_omni_display[['PACKAGE_NAME', 'qtd_vouchers_fmt', 'receita_bruta_fmt', 'receita_liquida_fmt']].rename(columns={
@@ -2131,7 +2202,8 @@ with tab_selfservice:
         dimensoes = st.multiselect(
             "Selecione dimensões:",
             ["Data", "Unidade", "Forma de Pagamento", "Serviço", "Terapeuta", "Cliente"],
-            default=["Unidade"]
+            default=["Unidade"],
+            key="selfservice_dimensoes"
         )
     
     with c2:
@@ -2139,7 +2211,8 @@ with tab_selfservice:
         metricas = st.multiselect(
             "Selecione métricas:",
             ["Receita Total", "Quantidade de Atendimentos", "Ticket Médio", "Clientes Únicos"],
-            default=["Receita Total", "Quantidade de Atendimentos"]
+            default=["Receita Total", "Quantidade de Atendimentos"],
+            key="selfservice_metricas"
         )
     
     if dimensoes and metricas:
@@ -2234,13 +2307,15 @@ with tab_gloss:
     st.markdown("""
     ### 📊 Principais Métricas
     
-    **Receita Total** – Soma de todos os valores líquidos de atendimentos no período.
+    **Receita Total** – Soma de todas as receitas: Belle (Sistema Local) + Ecommerce (Vouchers) + Parcerias (Cupons).
+    
+    **Receita Belle** – Soma de todos os valores líquidos de atendimentos presenciais no período.
     
     **Quantidade de Atendimentos** – Número de atendimentos únicos (`id_venda`).
     
     **Clientes Únicos** – Número de clientes distintos atendidos.
     
-    **Ticket Médio por Atendimento** – Receita Total ÷ Quantidade de Atendimentos.
+    **Ticket Médio por Atendimento** – Receita Belle ÷ Quantidade de Atendimentos.
     
     **NPS (Net Promoter Score)** – Indicador de satisfação calculado como: (% Promotores - % Detratores).
     - **Promotores**: Notas 9-10
@@ -2268,4 +2343,4 @@ with tab_gloss:
     - Na aba **Financeiro**, veja o detalhamento completo por origem (Belle, Ecommerce, Parcerias)
     """)
      
-    st.caption("Buddha Spa Dashboard – Portal de Franqueados v2.1")
+    st.caption("Buddha Spa Dashboard – Portal de Franqueados v2.2")
