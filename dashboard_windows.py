@@ -2141,7 +2141,7 @@ with tab_selfservice:
                 # Calcular variações
                 var_receita = ((receita_2 - receita_1) / receita_1 * 100) if receita_1 > 0 else 0
                 var_atend = ((qtd_atend_2 - qtd_atend_1) / qtd_atend_1 * 100) if qtd_atend_1 > 0 else 0
-                var_clientes = ((clientes_2 - clientes_1) / clientes_1  100) if clientes_1 > 0 else 0
+                var_clientes = ((clientes_2 - clientes_1) / clientes_1 * 100) if clientes_1 > 0 else 0
                 
                 # Mostrar resultados
                 st.markdown("### Comparativo de Desempenho")
