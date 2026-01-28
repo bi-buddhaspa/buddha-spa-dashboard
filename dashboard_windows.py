@@ -6,7 +6,6 @@ Portal Analítico para Gestão de Unidades
 
 VERSÃO: 3.0 - Completo e Documentado
 DATA: Janeiro 2026
-AUTOR: Leandro Santos & Claude AI
 
 ═══════════════════════════════════════════════════════════════════════════════
 📊 COMO FUNCIONA O CÁLCULO DA RECEITA TOTAL
