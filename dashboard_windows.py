@@ -905,7 +905,7 @@ colk1, colk2, colk3, colk4 = st.columns(4)
 with colk1:
     st.metric("Receita Total", formatar_moeda(receita_total))
     with st.popover("ℹ️"):
-        st.caption("Soma de todas as receitas: Belle (Sistema Local) + Ecommerce (Vouchers) + Parcerias (Cupons)")
+        st.caption("Soma de todas as receitas: Belle (Sistema Local) + Ecommerce (Vouchers) + Parcerias")
 
 with colk2:
     st.metric("Quantidade de Atendimentos", formatar_numero(qtd_atendimentos))
@@ -947,7 +947,7 @@ with st.expander("📊 De onde vem a Receita Total?", expanded=False):
        - Vouchers comprados online e utilizados na unidade
        - Sem cupons de desconto
     
-    3. **🤝 Parcerias (Cupons): {formatar_moeda(receita_parceiro)}**
+    3. **🤝 Parcerias : {formatar_moeda(receita_parceiro)}**
        - Vendas através de cupons de parceiros
        - Vouchers utilizados com desconto
     
@@ -1575,7 +1575,7 @@ with tab_fin:
             
             - **Belle (Sistema Local)**: Vendas registradas no sistema de gestão da unidade
             - **Ecommerce (Vouchers)**: Vouchers comprados online e utilizados na unidade
-            - **Parcerias (Cupons)**: Vendas através de cupons de parceiros
+            - **Parcerias**: Vendas através de cupons de parceiros
             """)
     
     faturamento_total_completo = receita_belle + receita_ecommerce + receita_parceiro
@@ -1599,7 +1599,7 @@ with tab_fin:
             st.caption("Vouchers comprados no site e utilizados na unidade")
     
     with col_fat4:
-        st.metric("🤝 Parcerias (Cupons)", formatar_moeda(receita_parceiro))
+        st.metric("🤝 Parcerias ", formatar_moeda(receita_parceiro))
         with st.popover("ℹ️"):
             st.caption("Vendas através de cupons de parceiros e empresas")
     
@@ -2417,7 +2417,7 @@ with tab_gloss:
     st.markdown("""
     ### 📊 Principais Métricas
     
-    **Receita Total** – Soma de todas as receitas: Belle (Sistema Local) + Ecommerce (Vouchers) + Parcerias (Cupons).
+    **Receita Total** – Soma de todas as receitas: Belle (Sistema Local) + Ecommerce (Vouchers) + Parcerias.
     
     **Receita Belle** – Soma de todos os valores líquidos de atendimentos presenciais no período.
     
@@ -2438,7 +2438,7 @@ with tab_gloss:
     
     **Vouchers Omnichannel** – Todos os vouchers vendidos para a unidade, independente se foram utilizados ou não (filtrados por `CREATED_DATE`).
     
-    **Distribuição de Receita** – Divisão da receita entre Belle (Sistema Local), Ecommerce (Vouchers) e Parcerias (Cupons).
+    **Distribuição de Receita** – Divisão da receita entre Belle (Sistema Local), Ecommerce (Vouchers) e Parcerias.
     
     ### 🎫 Sobre Vouchers
     
