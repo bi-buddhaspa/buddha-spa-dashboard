@@ -4,9 +4,8 @@ BUDDHA SPA - DASHBOARD DE FRANQUEADOS
 Portal Analítico para Gestão de Unidades
 ═══════════════════════════════════════════════════════════════════════════════
 
-VERSÃO: 3.0 - Completo e Documentado
+VERSÃO: 3.1 - Completo, Documentado e Atualizado
 DATA: Janeiro 2026
-AUTOR: Leandro Santos & Claude AI
 
 ═══════════════════════════════════════════════════════════════════════════════
 📊 COMO FUNCIONA O CÁLCULO DA RECEITA TOTAL
@@ -287,6 +286,15 @@ def formatar_percentual(valor):
         return "0,00%"
     return f"{valor:.2f}%".replace('.', ',')
 
+def formatar_data(data):
+    """Formata data para dd/mm/yyyy"""
+    if pd.isna(data):
+        return ""
+    try:
+        return pd.to_datetime(data).strftime('%d/%m/%Y')
+    except:
+        return str(data)
+
 def adicionar_totalizador(df, colunas_numericas, primeira_coluna='', calcular_ticket_medio=False):
     """
     Adiciona linha de total ao dataframe
@@ -426,6 +434,20 @@ st.markdown("""
         }
         .stMetric [data-testid="stMetricDelta"] {
             font-size: 0.8rem;
+        }
+        /* Estilo para tabelas */
+        .dataframe-custom {
+            font-size: 0.9rem;
+        }
+        .dataframe-custom th {
+            background-color: #8B0000;
+            color: white;
+        }
+        .dataframe-custom td {
+            text-align: left; /* Alinha texto à esquerda */
+        }
+        .dataframe-custom tr:nth-child(even) {
+            background-color: #f9f9f9;
         }
     </style>
 """, unsafe_allow_html=True)
@@ -791,6 +813,33 @@ def load_meta_ads(data_inicio, data_fim):
     WHERE DATE(data) BETWEEN DATE('{data_inicio}') AND DATE('{data_fim}')
     """
     return client.query(query).to_dataframe()
+
+# -----------------------------------------------------------------------------
+# NOVA FUNÇÃO: Carregar dados adicionais das unidades
+# -----------------------------------------------------------------------------
+@st.cache_data(ttl=3600)
+def load_dados_unidades():
+    """Carrega dados adicionais das unidades da tabela unidades_view."""
+    client = get_bigquery_client()
+    query = """
+    SELECT 
+        LOWER(nome_fantasia) AS nome_fantasia_lower,
+        coordenador_comercial,
+        quantidade_macas,
+        cluster,
+        banho AS salas_banho,
+        ayurvedica AS salas_ayurvedica,
+        data_inauguracao
+    FROM `buddha-bigdata.analytics.unidades_view`
+    """
+    df_unidades_extra = client.query(query).to_dataframe()
+    
+    # Normalizar o nome da unidade para combinar com o Belle
+    df_unidades_extra['unidade_normalizada'] = df_unidades_extra['nome_fantasia_lower'].str.lower().str.strip()
+    df_unidades_extra.drop(columns=['nome_fantasia_lower'], inplace=True)
+    
+    return df_unidades_extra
+
 
 # -----------------------------------------------------------------------------
 # SIDEBAR – FILTROS
@@ -1211,6 +1260,80 @@ with tab_visao:
         st.plotly_chart(fig_nps, use_container_width=True, key="chart_nps_pizza")
     else:
         st.info("Sem dados de NPS para o período selecionado.")
+    
+    st.markdown("---")
+    
+    # NOVA SEÇÃO: Informações das Unidades
+    st.subheader("Informações das Unidades")
+    
+    # Carregar dados extras das unidades
+    with st.spinner("Carregando informações adicionais das unidades..."):
+        try:
+            df_unidades_extra = load_dados_unidades()
+        except Exception as e:
+            st.error(f"Erro ao carregar dados adicionais das unidades: {e}")
+            df_unidades_extra = pd.DataFrame()
+    
+    # Filtrar e preparar dados para exibição
+    if not df_unidades_extra.empty:
+        # Filtrar unidades com base na seleção do usuário
+        if is_admin:
+            if unidades_selecionadas:
+                # Normalizar nomes para comparação
+                unidades_selecionadas_norm = [u.strip().lower() for u in unidades_selecionadas]
+                df_unidades_filtradas = df_unidades_extra[
+                    df_unidades_extra['unidade_normalizada'].isin(unidades_selecionadas_norm)
+                ].copy()
+            else:
+                df_unidades_filtradas = df_unidades_extra.copy()
+        else:
+            unidade_usuario_norm = unidade_usuario.strip().lower()
+            df_unidades_filtradas = df_unidades_extra[
+                df_unidades_extra['unidade_normalizada'] == unidade_usuario_norm
+            ].copy()
+        
+        if not df_unidades_filtradas.empty:
+            # Selecionar e renomear colunas para exibição
+            colunas_exibir = [
+                'unidade_normalizada',
+                'coordenador_comercial',
+                'quantidade_macas',
+                'cluster',
+                'salas_banho',
+                'salas_ayurvedica',
+                'data_inauguracao'
+            ]
+            
+            df_unidades_display = df_unidades_filtradas[colunas_exibir].copy()
+            
+            # Renomear colunas para melhor apresentação
+            df_unidades_display.rename(columns={
+                'unidade_normalizada': 'Unidade',
+                'coordenador_comercial': 'Coordenador Comercial',
+                'quantidade_macas': 'Nº de Macas',
+                'cluster': 'Cluster',
+                'salas_banho': 'Salas Banho',
+                'salas_ayurvedica': 'Salas Ayurvédicas',
+                'data_inauguracao': 'Data Inauguração'
+            }, inplace=True)
+            
+            # Formatar a data de inauguração
+            df_unidades_display['Data Inauguração'] = df_unidades_display['Data Inauguração'].apply(formatar_data)
+            
+            # Resetar índice para começar do 0
+            df_unidades_display.reset_index(drop=True, inplace=True)
+            
+            # Exibir a tabela com estilo personalizado
+            st.dataframe(
+                df_unidades_display,
+                use_container_width=True,
+                height=400,
+                hide_index=True
+            )
+        else:
+            st.info("Nenhuma informação adicional encontrada para as unidades selecionadas.")
+    else:
+        st.warning("Não foi possível carregar as informações adicionais das unidades.")
     
     st.markdown("---")
     
@@ -2015,7 +2138,7 @@ with tab_mkt:
         with col_titulo_geo:
             st.subheader("Distribuição Geográfica - Vendas por Estado")
         with col_ajuda_geo:
-            with st.popover("ℹ️"):
+        with st.popover("ℹ️"):
                 st.caption("Estados de onde vieram os clientes que utilizaram vouchers na sua unidade. Baseado no endereço de cobrança do pedido.")
         
         if 'Customer_State' in df_ecom.columns:
@@ -2453,4 +2576,4 @@ with tab_gloss:
     - Na aba **Financeiro**, veja o detalhamento completo por origem (Belle, Ecommerce, Parcerias)
     """)
      
-    st.caption("Buddha Spa Dashboard – Portal de Franqueados v2.2")
+    st.caption("Buddha Spa Dashboard – Portal de Franqueados ")
