@@ -6,7 +6,6 @@ Portal Analítico para Gestão de Unidades
 
 VERSÃO: 3.4 - Com Mapeamento Correto de IDs
 DATA: Janeiro 2026
-AUTOR: Leandro Santos & Claude AI
 
 CORREÇÃO: Agora usa ID_Belle, ID_Site e ID_Sults para fazer JOINs corretos
 ═══════════════════════════════════════════════════════════════════════════════
@@ -1142,4 +1141,3 @@ with tab_gloss:
     """)
      
     st.caption("Buddha Spa Dashboard – Portal de Franqueados")
-   
