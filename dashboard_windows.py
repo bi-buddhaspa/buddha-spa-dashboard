@@ -4,39 +4,44 @@ BUDDHA SPA - DASHBOARD DE FRANQUEADOS
 Portal Analítico para Gestão de Unidades
 ═══════════════════════════════════════════════════════════════════════════════
 
-VERSÃO: 3.0 - Completo e Documentado
+VERSÃO: 3.1 - FINAL CORRIGIDO
 DATA: Janeiro 2026
 
 ═══════════════════════════════════════════════════════════════════════════════
-📊 COMO FUNCIONA O CÁLCULO DA RECEITA TOTAL
+📊 COMO FUNCIONA O CÁLCULO DA RECEITA TOTAL - VERSÃO CORRIGIDA
 ═══════════════════════════════════════════════════════════════════════════════
 
 A Receita Total mostrada no dashboard vem de 3 ORIGENS diferentes:
 
 1. 🏪 BELLE (Sistema Local)
-   - Atendimentos pagos DIRETAMENTE na unidade
+   - Atendimentos E PRODUTOS pagos DIRETAMENTE na unidade
    - Cliente chega, faz o serviço, paga no local (cartão/dinheiro/PIX)
+   - INCLUI produtos vendidos (cosméticos, óleos, cremes, etc.)
+   - EXCLUI TotalPass, GymPass, ClassPass (esses vão para Parcerias)
    - Registrado no sistema Belle (sistema de gestão local da unidade)
    - Exemplo: R$ 139.660,00
 
-2. 🛒 ECOMMERCE (Vouchers SEM Cupom)
+2. 🛒 ECOMMERCE (Vouchers - TODOS)
    - Cliente compra voucher no SITE Buddha Spa
-   - NÃO usa cupom de desconto
+   - INCLUI vouchers COM e SEM cupom de desconto
    - Vai na unidade e USA o voucher
    - Terapeuta atende o cliente normalmente
    - Receita conta para a unidade onde foi USADO
-   - Exemplo: R$ 81.332,04
+   - Exemplo: R$ 109.263,01 (TODOS os vouchers utilizados)
 
-3. 🤝 PARCERIAS (Vouchers COM Cupom)
-   - Cliente compra voucher no SITE Buddha Spa
-   - USA cupom de desconto de parceiro/empresa
-   - Vai na unidade e USA o voucher
-   - Receita conta para a unidade onde foi USADO
-   - Exemplo: R$ 27.930,97
+3. 🤝 PARCERIAS COMERCIAIS (TotalPass, GymPass, ClassPass)
+   - Cliente usa plataforma de parceiro (TotalPass/GymPass/ClassPass)
+   - Paga através da plataforma do parceiro
+   - Vai na unidade e apresenta o convênio
+   - Identificado pela forma_pagamento no sistema Belle:
+     * "parcerias comerciais - totalpass"
+     * "parcerias comerciais - gympass"
+     * "parcerias comerciais - classpass"
+   - Exemplo: R$ 5.000,00
 
-RECEITA TOTAL = Belle + Ecommerce + Parcerias
-RECEITA TOTAL = R$ 139.660,00 + R$ 81.332,04 + R$ 27.930,97
-RECEITA TOTAL = R$ 248.923,01 ✅
+RECEITA TOTAL = Belle + Ecommerce + Parcerias Comerciais
+RECEITA TOTAL = R$ 139.660,00 + R$ 109.263,01 + R$ 5.000,00
+RECEITA TOTAL = R$ 253.923,01 ✅
 
 ═══════════════════════════════════════════════════════════════════════════════
 🔍 POR QUE OS VALORES PODEM PARECER DIFERENTES?
@@ -44,18 +49,22 @@ RECEITA TOTAL = R$ 248.923,01 ✅
 
 Você pode ver valores diferentes em diferentes partes do dashboard:
 
-1. "PRINCIPAIS SERVIÇOS" mostra R$ 112.994,00 e 1.141 atendimentos
+1. "PRINCIPAIS SERVIÇOS" mostra valor menor que Receita Total
    POR QUÊ É DIFERENTE?
    - O gráfico mostra apenas os TOP 15 serviços mais vendidos
    - Não mostra TODOS os serviços
    - É um recorte para facilitar a visualização
-   - Se somar TODOS os serviços, daria R$ 139.660,00 (Belle completo)
+   - Se somar TODOS os serviços + produtos, daria a Receita Belle completa
 
-2. "ECOMMERCE" mostra valores diferentes em lugares diferentes
-   POR QUÊ?
-   - Aba "Visão Geral": mostra parte do ecommerce (R$ 81.332,04)
-   - Aba "Marketing": mostra TODOS os vouchers utilizados (R$ 109.263,01)
-   - A diferença vem de vouchers com cupons de parceiros
+2. "PRODUTOS ESTÃO INCLUÍDOS"
+   - Antes: dashboard só contava serviços (massagens, tratamentos)
+   - Agora: inclui produtos vendidos (cosméticos, óleos, cremes)
+   - Isso aumenta a Receita Belle total
+
+3. "PARCERIAS COMERCIAIS são TotalPass/GymPass/ClassPass"
+   - Não são mais vouchers com cupons!
+   - São atendimentos pagos via plataformas de parceiros
+   - Identificados pela forma de pagamento no sistema Belle
 
 ═══════════════════════════════════════════════════════════════════════════════
 📅 ENTENDENDO AS DATAS
@@ -79,26 +88,41 @@ EXEMPLO:
 - No dashboard aparece em 20/janeiro (quando gerou o atendimento)
 
 ═══════════════════════════════════════════════════════════════════════════════
-🎯 MÉTRICAS PRINCIPAIS
+🎯 MÉTRICAS PRINCIPAIS - VERSÃO CORRIGIDA
 ═══════════════════════════════════════════════════════════════════════════════
 
-1. RECEITA TOTAL (R$ 248.923,01)
-   - Soma de TODAS as origens: Belle + Ecommerce + Parcerias
+1. RECEITA TOTAL
+   - Soma de TODAS as origens: Belle + Ecommerce + Parcerias Comerciais
+   - INCLUI produtos vendidos
+   - INCLUI todos os vouchers (com ou sem cupom)
+   - INCLUI TotalPass, GymPass, ClassPass
    - Todo o dinheiro que entrou na unidade no período
 
-2. QUANTIDADE DE ATENDIMENTOS (1.304)
-   - Quantos atendimentos únicos foram realizados
+2. QUANTIDADE DE ATENDIMENTOS - CORRIGIDO!
+   - Atendimentos Belle + Vouchers Utilizados
    - Conta cada ID de venda = 1 atendimento
-   - Inclui APENAS Belle (presenciais diretos)
+   - INCLUI vouchers porque geram atendimento real (terapeuta trabalha)
+   - Exemplo: 1.304 atendimentos Belle + 150 vouchers = 1.454 total
 
-3. CLIENTES ÚNICOS (1.093)
+3. CLIENTES ÚNICOS
    - Quantos clientes DIFERENTES foram atendidos
    - João fez 3 massagens = 3 atendimentos, mas 1 cliente único
 
-4. TICKET MÉDIO (R$ 227,83)
-   - Receita Belle ÷ Atendimentos Pagos
-   - Usa APENAS Belle porque vouchers já foram pagos antes
-   - Mede: "Quanto o cliente gasta POR ATENDIMENTO na unidade?"
+4. TICKET MÉDIO - CORRIGIDO!
+   - Receita TOTAL ÷ Atendimentos TOTAIS (incluindo vouchers)
+   - Usa TUDO porque vouchers geram receita via reembolso
+   - Mede: "Quanto de receita média por atendimento?"
+   - Exemplo: R$ 253.923 ÷ 1.454 = R$ 174,60 por atendimento
+
+═══════════════════════════════════════════════════════════════════════════════
+✅ MUDANÇAS IMPLEMENTADAS NESTA VERSÃO
+═══════════════════════════════════════════════════════════════════════════════
+
+1. ✅ PRODUTOS INCLUÍDOS - removido filtro tipo_item = 'Serviço'
+2. ✅ PARCERIAS COMERCIAIS = TotalPass/GymPass/ClassPass (forma_pagamento)
+3. ✅ ECOMMERCE = TODOS os vouchers (com ou sem cupom)
+4. ✅ QUANTIDADE ATENDIMENTOS = Belle + Vouchers utilizados
+5. ✅ TICKET MÉDIO = Receita Total ÷ Total Atendimentos
 
 ═══════════════════════════════════════════════════════════════════════════════
 """
@@ -1601,9 +1625,9 @@ with tab_fin:
             st.caption("Receita total dos atendimentos presenciais (Belle - não inclui vouchers de ecommerce).")
     
     with colf2:
-        st.metric("Quantidade de Atendimentos", formatar_numero(qtd_atendimentos))
+        st.metric("Quantidade de Atendimentos", formatar_numero(qtd_atendimentos_total))
         with st.popover("ℹ️"):
-            st.caption("Total de atendimentos únicos realizados.")
+            st.caption(f"Total de atendimentos: Belle ({formatar_numero(qtd_atendimentos_belle)}) + Vouchers ({formatar_numero(qtd_vouchers_utilizados)}) = {formatar_numero(qtd_atendimentos_total)}")
     
     with colf3:
         st.metric("Ticket Médio Unidade", formatar_moeda(ticket_medio))
@@ -2678,4 +2702,4 @@ with tab_gloss:
     - Na aba **Financeiro**, veja o detalhamento completo por origem (Belle, Ecommerce, Parcerias)
     """)
      
-    st.caption("Buddha Spa Dashboard – Portal de Franqueados v2.2")
+    st.caption("Buddha Spa Dashboard – Portal de Franqueados v3.1 FINAL CORRIGIDO")
