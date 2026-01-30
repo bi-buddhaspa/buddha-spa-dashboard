@@ -1072,8 +1072,17 @@ with tab_atend:
     st.subheader("Performance por Terapeuta")
     
     if 'profissional' in df.columns:
+        # ✅✅✅ ADICIONAR ESTAS 5 LINHAS AQUI ✅✅✅
+        df_filtrado = df[
+            df['profissional'].notna() & 
+            (df['profissional'] != '') &
+            (df['profissional'].str.strip() != '')
+        ].copy()
+        # ✅✅✅ FIM DO CÓDIGO NOVO ✅✅✅
+        
+        # ✅ TROCAR 'df' por 'df_filtrado' na linha abaixo
         df_terap = (
-            df.groupby(['unidade', 'profissional'])
+            df_filtrado.groupby(['unidade', 'profissional'])  # ← AQUI!
             .agg(
                 receita=(valor_col, 'sum'),
                 qtd_atendimentos=('id_venda', 'nunique'),
@@ -1081,6 +1090,7 @@ with tab_atend:
             )
             .reset_index()
         )
+        # resto do código continua igual...
         df_terap['ticket_medio'] = df_terap['receita'] / df_terap['qtd_atendimentos']
         df_terap = df_terap.sort_values('receita', ascending=False)
         
