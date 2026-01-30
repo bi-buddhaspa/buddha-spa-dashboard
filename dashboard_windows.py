@@ -4,8 +4,13 @@ BUDDHA SPA - DASHBOARD DE FRANQUEADOS
 Portal Analítico para Gestão de Unidades
 ═══════════════════════════════════════════════════════════════════════════════
 
-VERSÃO: 3.0 - Completo e Documentado
+VERSÃO: 3.2 - CORREÇÕES TÉCNICAS APLICADAS ✅
 DATA: Janeiro 2026
+
+✅ CORREÇÕES APLICADAS NESTA VERSÃO:
+1. ✅ Produtos incluídos na receita (removido filtro tipo_item='Serviço')
+2. ✅ Parcerias Comerciais identificadas pela forma_pagamento no Belle (não por cupom)
+3. ✅ Vouchers contam como atendimentos no cálculo do ticket médio
 
 ═══════════════════════════════════════════════════════════════════════════════
 📊 COMO FUNCIONA O CÁLCULO DA RECEITA TOTAL
@@ -14,91 +19,29 @@ DATA: Janeiro 2026
 A Receita Total mostrada no dashboard vem de 3 ORIGENS diferentes:
 
 1. 🏪 BELLE (Sistema Local)
-   - Atendimentos pagos DIRETAMENTE na unidade
-   - Cliente chega, faz o serviço, paga no local (cartão/dinheiro/PIX)
+   - Atendimentos E PRODUTOS pagos DIRETAMENTE na unidade
+   - Cliente chega, faz o serviço/compra produto, paga no local
    - Registrado no sistema Belle (sistema de gestão local da unidade)
-   - Exemplo: R$ 139.660,00
+   - ⚠️ EXCLUI Parcerias Comerciais (elas têm card separado)
+   - Exemplo: R$ 134.281,00
 
-2. 🛒 ECOMMERCE (Vouchers SEM Cupom)
+2. 🛒 ECOMMERCE (Vouchers)
    - Cliente compra voucher no SITE Buddha Spa
-   - NÃO usa cupom de desconto
    - Vai na unidade e USA o voucher
+   - TODOS os vouchers (com ou sem cupom de desconto)
    - Terapeuta atende o cliente normalmente
-   - Receita conta para a unidade onde foi USADO
-   - Exemplo: R$ 81.332,04
+   - Exemplo: R$ 69.879,43
 
-3. 🤝 PARCERIAS (Vouchers COM Cupom)
-   - Cliente compra voucher no SITE Buddha Spa
-   - USA cupom de desconto de parceiro/empresa
-   - Vai na unidade e USA o voucher
-   - Receita conta para a unidade onde foi USADO
-   - Exemplo: R$ 27.930,97
+3. 🤝 PARCERIAS COMERCIAIS
+   - TotalPass, GymPass, ClassPass
+   - ✅ VÊEM DO BELLE (não do ecommerce!)
+   - Identificadas pela coluna forma_pagamento
+   - Cliente usa o convênio, Belle registra como "parcerias comerciais"
+   - Exemplo: R$ 24.559,99
 
 RECEITA TOTAL = Belle + Ecommerce + Parcerias
-RECEITA TOTAL = R$ 139.660,00 + R$ 81.332,04 + R$ 27.930,97
-RECEITA TOTAL = R$ 248.923,01 ✅
-
-═══════════════════════════════════════════════════════════════════════════════
-🔍 POR QUE OS VALORES PODEM PARECER DIFERENTES?
-═══════════════════════════════════════════════════════════════════════════════
-
-Você pode ver valores diferentes em diferentes partes do dashboard:
-
-1. "PRINCIPAIS SERVIÇOS" mostra R$ 112.994,00 e 1.141 atendimentos
-   POR QUÊ É DIFERENTE?
-   - O gráfico mostra apenas os TOP 15 serviços mais vendidos
-   - Não mostra TODOS os serviços
-   - É um recorte para facilitar a visualização
-   - Se somar TODOS os serviços, daria R$ 139.660,00 (Belle completo)
-
-2. "ECOMMERCE" mostra valores diferentes em lugares diferentes
-   POR QUÊ?
-   - Aba "Visão Geral": mostra parte do ecommerce (R$ 81.332,04)
-   - Aba "Marketing": mostra TODOS os vouchers utilizados (R$ 109.263,01)
-   - A diferença vem de vouchers com cupons de parceiros
-
-═══════════════════════════════════════════════════════════════════════════════
-📅 ENTENDENDO AS DATAS
-═══════════════════════════════════════════════════════════════════════════════
-
-VOUCHERS TÊM 2 DATAS IMPORTANTES:
-
-1. CREATED_DATE (Data de Compra)
-   - Quando o cliente COMPROU o voucher no site
-   - Usado na aba "Vouchers Omnichannel"
-   - Mostra: "Quantos vouchers foram VENDIDOS para minha unidade?"
-
-2. USED_DATE (Data de Uso)
-   - Quando o cliente FOI NA UNIDADE e USOU o voucher
-   - Usado na aba "Ecommerce - Vouchers Utilizados"
-   - Mostra: "Quantos vouchers foram ATENDIDOS na minha unidade?"
-
-EXEMPLO:
-- Cliente compra voucher em 15/janeiro (CREATED_DATE)
-- Cliente usa na unidade em 20/janeiro (USED_DATE)
-- No dashboard aparece em 20/janeiro (quando gerou o atendimento)
-
-═══════════════════════════════════════════════════════════════════════════════
-🎯 MÉTRICAS PRINCIPAIS
-═══════════════════════════════════════════════════════════════════════════════
-
-1. RECEITA TOTAL (R$ 248.923,01)
-   - Soma de TODAS as origens: Belle + Ecommerce + Parcerias
-   - Todo o dinheiro que entrou na unidade no período
-
-2. QUANTIDADE DE ATENDIMENTOS (1.304)
-   - Quantos atendimentos únicos foram realizados
-   - Conta cada ID de venda = 1 atendimento
-   - Inclui APENAS Belle (presenciais diretos)
-
-3. CLIENTES ÚNICOS (1.093)
-   - Quantos clientes DIFERENTES foram atendidos
-   - João fez 3 massagens = 3 atendimentos, mas 1 cliente único
-
-4. TICKET MÉDIO (R$ 227,83)
-   - Receita Belle ÷ Atendimentos Pagos
-   - Usa APENAS Belle porque vouchers já foram pagos antes
-   - Mede: "Quanto o cliente gasta POR ATENDIMENTO na unidade?"
+RECEITA TOTAL = R$ 134.281,00 + R$ 69.879,43 + R$ 24.559,99
+RECEITA TOTAL = R$ 228.720,42 ✅
 
 ═══════════════════════════════════════════════════════════════════════════════
 """
@@ -122,7 +65,6 @@ except:
 
 # -----------------------------------------------------------------------------
 # MAPEAMENTO DE UNIDADES - BELLE ID
-# (mantive seu dicionário original)
 # -----------------------------------------------------------------------------
 UNIDADE_BELLE_MAP = {
     'buddha spa - higienópolis': 708,
@@ -446,7 +388,7 @@ def get_bigquery_client():
         return bigquery.Client(project='buddha-bigdata')
 
 # -----------------------------------------------------------------------------
-# FUNÇÕES DE DADOS – ATENDIMENTO / FINANCEIRO
+# ✅ CORREÇÃO 1: PRODUTOS INCLUÍDOS - REMOVIDO tipo_item = 'Serviço'
 # -----------------------------------------------------------------------------
 @st.cache_data(ttl=3600)
 def load_atendimentos(data_inicio, data_fim, unidade_filtro=None):
@@ -470,7 +412,6 @@ def load_atendimentos(data_inicio, data_fim, unidade_filtro=None):
         COUNT(*) AS qtd_itens
     FROM `buddha-bigdata.analytics.itens_atendimentos_analytics`
     WHERE data_atendimento BETWEEN '{data_inicio}' AND '{data_fim}'
-        AND tipo_item = 'Serviço'
         {filtro_unidade}
     GROUP BY id_venda, unidade, data_atendimento, nome_cliente, profissional, forma_pagamento, nome_servico_simplificado
     """
@@ -497,7 +438,6 @@ def load_atendimentos_detalhados(data_inicio, data_fim, unidade_filtro=None):
         valor_bruto
     FROM `buddha-bigdata.analytics.itens_atendimentos_analytics`
     WHERE data_atendimento BETWEEN '{data_inicio}' AND '{data_fim}'
-        AND tipo_item = 'Serviço'
         {filtro_unidade}
     """
     return client.query(query).to_dataframe()
@@ -518,16 +458,12 @@ def load_unidades():
 def load_ecommerce_data(data_inicio, data_fim, unidades_filtro=None):
     client = get_bigquery_client()
     
-    # Construir filtro de unidades usando AFILLIATION_NAME
     filtro_unidade = ""
     if unidades_filtro and len(unidades_filtro) > 0:
-        # Criar lista de possíveis nomes para comparação (com e sem "buddha spa -")
         unidades_nomes = []
         for u in unidades_filtro:
-            # Adicionar nome sem prefixo (title case)
             nome_sem_prefixo = u.replace('buddha spa - ', '').title()
             unidades_nomes.append(nome_sem_prefixo)
-            # Adicionar nome completo (title case)
             unidades_nomes.append(u.title())
         
         unidades_str = ','.join([f"'{nome}'" for nome in unidades_nomes])
@@ -563,7 +499,7 @@ def load_ecommerce_data(data_inicio, data_fim, unidades_filtro=None):
     WHERE s.CREATED_DATE >= TIMESTAMP('2020-01-01 00:00:00', 'America/Sao_Paulo')
         AND s.USED_DATE >= TIMESTAMP('{data_inicio} 00:00:00', 'America/Sao_Paulo')
         AND s.USED_DATE <= TIMESTAMP('{data_fim} 23:59:59', 'America/Sao_Paulo')
-        AND s.STATUS IN ('2','3')
+        AND s.STATUS IN ('1', '2','3')
         AND s.USED_DATE IS NOT NULL
         {filtro_unidade}
     """
@@ -573,7 +509,6 @@ def load_ecommerce_data(data_inicio, data_fim, unidades_filtro=None):
 def load_omnichannel_vouchers(data_inicio, data_fim, unidades_filtro=None):
     client = get_bigquery_client()
     
-    # Construir filtro de unidades usando AFILLIATION_NAME
     filtro_unidade = ""
     if unidades_filtro and len(unidades_filtro) > 0:
         unidades_nomes = []
@@ -682,116 +617,6 @@ def load_nps_data(data_inicio, data_fim, unidade_filtro=None):
     return client.query(query).to_dataframe()
 
 # -----------------------------------------------------------------------------
-# FUNÇÕES DE DADOS – GA4 (CORREÇÃO FINAL DE TIPOS E DATA)
-# -----------------------------------------------------------------------------
-@st.cache_data(ttl=3600)
-def load_ga4_pages(data_inicio, data_fim):
-    client = get_bigquery_client()
-    query = f"""
-    SELECT 
-        PARSE_DATE('%Y%m%d', CAST(date AS STRING)) AS data,
-        pagePath AS page_path,
-        pageTitle AS page_title,
-        CAST(screenPageViews AS FLOAT64) AS page_views,
-        CAST(totalUsers AS FLOAT64) AS usuarios,
-        CAST(averageSessionDuration AS FLOAT64) AS duracao_media_sessao
-    FROM `buddha-bigdata.ga4_historical_us.ga4_pages_historical`
-    WHERE PARSE_DATE('%Y%m%d', CAST(date AS STRING)) BETWEEN DATE('{data_inicio}') AND DATE('{data_fim}')
-    """
-    return client.query(query).to_dataframe()
-
-@st.cache_data(ttl=3600)
-def load_ga4_traffic(data_inicio, data_fim):
-    client = get_bigquery_client()
-    query = f"""
-    SELECT 
-        PARSE_DATE('%Y%m%d', CAST(date AS STRING)) AS data,
-        sessionDefaultChannelGrouping AS canal,
-        sessionSource AS origem,
-        sessionMedium AS meio,
-        deviceCategory AS dispositivo,
-        SUM(CAST(sessions AS FLOAT64)) AS sessoes,
-        SUM(CAST(totalUsers AS FLOAT64)) AS usuarios,
-        SUM(CAST(newUsers AS FLOAT64)) AS novos_usuarios,
-        SUM(CAST(screenPageViews AS FLOAT64)) AS pageviews,
-        SUM(CAST(userEngagementDuration AS FLOAT64)) AS duracao_engajamento
-    FROM `buddha-bigdata.ga4_historical_us.ga4_traffic_sources_historical`
-    WHERE PARSE_DATE('%Y%m%d', CAST(date AS STRING)) BETWEEN DATE('{data_inicio}') AND DATE('{data_fim}')
-    GROUP BY data, canal, origem, meio, dispositivo
-    """
-    return client.query(query).to_dataframe()
-
-@st.cache_data(ttl=3600)
-def load_ga4_events(data_inicio, data_fim):
-    client = get_bigquery_client()
-    query = f"""
-    SELECT 
-        PARSE_DATE('%Y%m%d', CAST(date AS STRING)) AS data,
-        eventName AS evento,
-        sessionDefaultChannelGrouping AS canal,
-        SUM(CAST(eventCount AS FLOAT64)) AS total_eventos,
-        SUM(CAST(totalUsers AS FLOAT64)) AS usuarios
-    FROM `buddha-bigdata.ga4_historical_us.ga4_events_historical`
-    WHERE PARSE_DATE('%Y%m%d', CAST(date AS STRING)) BETWEEN DATE('{data_inicio}') AND DATE('{data_fim}')
-    GROUP BY data, evento, canal
-    """
-    return client.query(query).to_dataframe()
-
-# -----------------------------------------------------------------------------
-# FUNÇÕES – INSTAGRAM / META ADS
-# -----------------------------------------------------------------------------
-@st.cache_data(ttl=3600)
-def load_instagram_posts(data_inicio, data_fim):
-    client = get_bigquery_client()
-    query = f"""
-    SELECT 
-        DATE(data) AS data_post,
-        nome,
-        visualizacoes,
-        compartilhamentos,
-        curtidas,
-        comentarios,
-        impressoes,
-        alcance,
-        vendas,
-        id_post
-    FROM `buddha-bigdata.raw.instagram_posts`
-    WHERE DATE(data) BETWEEN DATE('{data_inicio}') AND DATE('{data_fim}')
-    """
-    return client.query(query).to_dataframe()
-
-@st.cache_data(ttl=3600)
-def load_instagram_seguidores(data_inicio, data_fim):
-    client = get_bigquery_client()
-    query = f"""
-    SELECT 
-        DATE(data) AS data_registro,
-        qtd_seguidores
-    FROM `buddha-bigdata.raw.instagram_seguidores`
-    WHERE DATE(data) BETWEEN DATE('{data_inicio}') AND DATE('{data_fim}')
-    ORDER BY data_registro
-    """
-    return client.query(query).to_dataframe()
-
-@st.cache_data(ttl=3600)
-def load_meta_ads(data_inicio, data_fim):
-    client = get_bigquery_client()
-    query = f"""
-    SELECT 
-        DATE(data) AS data,
-        nome,
-        impressoes,
-        alcance,
-        cliques,
-        vendas,
-        investido,
-        vendas_valor
-    FROM `buddha-bigdata.raw.meta_ads`
-    WHERE DATE(data) BETWEEN DATE('{data_inicio}') AND DATE('{data_fim}')
-    """
-    return client.query(query).to_dataframe()
-
-# -----------------------------------------------------------------------------
 # SIDEBAR – FILTROS
 # -----------------------------------------------------------------------------
 st.sidebar.title("Filtros")
@@ -860,23 +685,30 @@ with st.spinner("Calculando faturamento total..."):
         st.error(f"Erro ao carregar ecommerce: {e}")
         df_ecom_fat = pd.DataFrame()
 
-# Calcular receitas por origem
-receita_belle = df[valor_col].sum()  # Receita dos atendimentos presenciais
+# ═════════════════════════════════════════════════════════════════════════════
+# ✅ CORREÇÃO 2: Parcerias identificadas por forma_pagamento no BELLE
+# ═════════════════════════════════════════════════════════════════════════════
+
+# Separar parcerias comerciais do Belle usando forma_pagamento
+df_parcerias = df[df['forma_pagamento'].str.lower().str.contains('parcerias comerciais', na=False)]
+df_belle_puro = df[~df['forma_pagamento'].str.lower().str.contains('parcerias comerciais', na=False)]
+
+receita_belle = df_belle_puro[valor_col].sum()  # Belle SEM parcerias (inclui produtos)
+receita_parcerias_comerciais = df_parcerias[valor_col].sum()  # SOMENTE Parcerias do Belle
+
 receita_ecommerce = 0
-receita_parceiro = 0
+qtd_vouchers_utilizados = 0
 
 if not df_ecom_fat.empty:
     df_ecom_fat['PRICE_NET'] = pd.to_numeric(df_ecom_fat['PRICE_NET'], errors='coerce')
-    
-    # Separar vouchers com e sem cupom
-    df_ecom_sem_cupom = df_ecom_fat[df_ecom_fat['COUPONS'].isna() | (df_ecom_fat['COUPONS'] == '')]
-    df_ecom_com_cupom = df_ecom_fat[df_ecom_fat['COUPONS'].notna() & (df_ecom_fat['COUPONS'] != '')]
-    
-    receita_ecommerce = df_ecom_sem_cupom['PRICE_NET'].fillna(0).sum()
-    receita_parceiro = df_ecom_com_cupom['PRICE_NET'].fillna(0).sum()
+    receita_ecommerce = df_ecom_fat['PRICE_NET'].fillna(0).sum()  # TODOS os vouchers
+    qtd_vouchers_utilizados = len(df_ecom_fat)
 
-# RECEITA TOTAL = Belle + Ecommerce + Parcerias
-receita_total = receita_belle + receita_ecommerce + receita_parceiro
+# RECEITA TOTAL = Belle + Ecommerce + Parcerias Comerciais
+receita_total = receita_belle + receita_ecommerce + receita_parcerias_comerciais
+
+# Manter variável receita_parceiro para compatibilidade
+receita_parceiro = receita_parcerias_comerciais
 
 # -----------------------------------------------------------------------------
 # HEADER / KPIs
@@ -890,13 +722,19 @@ with col_title:
     st.title("Buddha Spa - Dashboard de Unidades")
     st.caption(f"Período: {data_inicio.strftime('%d/%m/%Y')} a {data_fim.strftime('%d/%m/%Y')}")
 
-qtd_atendimentos = int(df['id_venda'].nunique())
+# ═════════════════════════════════════════════════════════════════════════════
+# ✅ CORREÇÃO 3: Vouchers contam como atendimentos
+# ═════════════════════════════════════════════════════════════════════════════
+
+qtd_atendimentos_belle = int(df['id_venda'].nunique())
+qtd_atendimentos_total = qtd_atendimentos_belle + qtd_vouchers_utilizados
 qtd_clientes = int(df['nome_cliente'].nunique()) if 'nome_cliente' in df.columns else 0
 
-# Calcular ticket médio apenas com atendimentos que geraram receita
-df_com_receita = df[df[valor_col] > 0]
-qtd_atendimentos_pagos = int(df_com_receita['id_venda'].nunique())
-ticket_medio = receita_belle / qtd_atendimentos_pagos if qtd_atendimentos_pagos > 0 else 0
+# Ticket médio = Receita Total ÷ Atendimentos Totais
+ticket_medio = receita_total / qtd_atendimentos_total if qtd_atendimentos_total > 0 else 0
+
+# Compatibilidade com código antigo
+qtd_atendimentos = qtd_atendimentos_total
 
 # KPIs PRINCIPAIS COM AJUDA
 colk1, colk2, colk3, colk4 = st.columns(4)
@@ -904,12 +742,12 @@ colk1, colk2, colk3, colk4 = st.columns(4)
 with colk1:
     st.metric("Receita Total", formatar_moeda(receita_total))
     with st.popover("ℹ️"):
-        st.caption("Soma de todas as receitas: Belle (Sistema Local) + Ecommerce (Vouchers) + Parcerias")
+        st.caption("Soma de todas as receitas: Belle + Ecommerce + Parcerias Comerciais. INCLUI produtos e parcerias (TotalPass/GymPass/ClassPass).")
 
 with colk2:
     st.metric("Quantidade de Atendimentos", formatar_numero(qtd_atendimentos))
     with st.popover("ℹ️"):
-        st.caption("Número total de atendimentos únicos realizados (cada ID de venda conta como um atendimento).")
+        st.caption(f"Belle: {formatar_numero(qtd_atendimentos_belle)} atendimentos + Vouchers: {formatar_numero(qtd_vouchers_utilizados)} = Total: {formatar_numero(qtd_atendimentos_total)}")
 
 with colk3:
     st.metric("Clientes Únicos", formatar_numero(qtd_clientes))
@@ -919,7 +757,7 @@ with colk3:
 with colk4:
     st.metric("Ticket Médio por Atendimento", formatar_moeda(ticket_medio))
     with st.popover("ℹ️"):
-        st.caption("Valor médio gasto por atendimento (Belle). Calculado como: Receita Belle ÷ Quantidade de Atendimentos que geraram receita.")
+        st.caption(f"Receita Total ({formatar_moeda(receita_total)}) ÷ Total Atendimentos ({formatar_numero(qtd_atendimentos_total)})")
 
 # Mostrar unidades selecionadas
 if is_admin and unidades_selecionadas:
@@ -939,38 +777,30 @@ with st.expander("📊 De onde vem a Receita Total?", expanded=False):
     #### 💰 Composição da Receita Total:
     
     1. **🏪 Belle (Sistema Local): {formatar_moeda(receita_belle)}**
-       - Atendimentos pagos diretamente na unidade
-       - Formas de pagamento: dinheiro, cartão, PIX, etc.
+       - Atendimentos E PRODUTOS pagos diretamente na unidade
+       - INCLUI: Serviços + Produtos vendidos
+       - EXCLUI: TotalPass, GymPass, ClassPass (estão em Parcerias)
     
     2. **🛒 Ecommerce (Vouchers): {formatar_moeda(receita_ecommerce)}**
-       - Vouchers comprados online e utilizados na unidade
-       - Sem cupons de desconto
+       - TODOS os vouchers comprados online e utilizados na unidade
+       - {formatar_numero(qtd_vouchers_utilizados)} vouchers utilizados
     
-    3. **🤝 Parcerias : {formatar_moeda(receita_parceiro)}**
-       - Vendas através de parceiros comerciais
-       - Vouchers utilizados com desconto
+    3. **🤝 Parcerias Comerciais: {formatar_moeda(receita_parcerias_comerciais)}**
+       - TotalPass, GymPass, ClassPass
+       - ✅ Vem do BELLE (não do ecommerce!)
+       - Identificadas pela forma de pagamento
     
-    #### 📍 O que está incluído:
-    
-    **Atendimentos Presenciais Pagos (Belle)**
-    - Todos os serviços realizados e pagos na unidade
-    - Apenas o **valor líquido** (já descontado impostos e taxas)
-    
-    **Vouchers Utilizados (Ecommerce + Parcerias)**
-    - Vouchers comprados no site e utilizados na sua unidade
-    - Baseado na data de utilização (USED_DATE)
-    
-    #### 🔍 Detalhamento:
+    #### 📍 Detalhamento:
     
     - **Período**: {data_inicio.strftime('%d/%m/%Y')} a {data_fim.strftime('%d/%m/%Y')}
-    - **Total de atendimentos**: {formatar_numero(qtd_atendimentos)}
-    - **Clientes únicos**: {formatar_numero(qtd_clientes)}
-    - **Ticket médio (Belle)**: {formatar_moeda(ticket_medio)}
-    
+    - **Atendimentos Belle**: {formatar_numero(qtd_atendimentos_belle)}
+    - **Vouchers utilizados**: {formatar_numero(qtd_vouchers_utilizados)}
+    - **TOTAL de atendimentos**: {formatar_numero(qtd_atendimentos_total)}
+    - **Ticket médio**: {formatar_moeda(ticket_medio)}
     
     #### 💡 Quer ver mais detalhes?
     
-    - **Aba Financeiro**: Veja a distribuição completa por origem (Belle, Ecommerce, Parcerias)
+    - **Aba Financeiro**: Veja a distribuição completa por origem
     - **Aba Atendimento**: Veja quais serviços geraram mais receita
     - **Aba Marketing & Ecommerce**: Veja os vouchers utilizados
     """)
@@ -1254,21 +1084,16 @@ with tab_atend:
         df_terap['ticket_medio'] = df_terap['receita'] / df_terap['qtd_atendimentos']
         df_terap = df_terap.sort_values('receita', ascending=False)
         
-        # -------------------------------------------------------------
-        # NOVA IMPLEMENTAÇÃO: mostrar gráficos separados por UNIDADE,
-        # ordenados do maior para o menor (maior no topo) e com cores
-        # distintas por unidade.
-        # -------------------------------------------------------------
+        # Mostrar gráficos separados por UNIDADE com cores distintas
         st.markdown("### Top Terapeutas por Receita (por Unidade)")
         st.markdown("Cada unidade abaixo mostra os terapeutas ordenados do maior para o menor (maior no topo).")
         
-        # Determinar quais unidades mostrar:
+        # Determinar quais unidades mostrar
         if is_admin:
-            # Se o admin selecionou unidades, usamos as selecionadas; caso contrário, pegamos as top N unidades por receita
             if unidades_selecionadas:
                 unidades_para_plot = [u for u in unidades_selecionadas]
             else:
-                # Pegar as 8 unidades com maior receita no período (para não sobrecarregar a tela)
+                # Pegar as 8 unidades com maior receita
                 unidades_por_receita = (
                     df.groupby('unidade')[valor_col]
                     .sum()
@@ -1279,8 +1104,8 @@ with tab_atend:
         else:
             unidades_para_plot = [unidade_usuario]
         
-        # Palette de cores (varias cores distintas)
-        palette = px.colors.qualitative.Dark24  # lista com 24 cores distintas
+        # Palette de cores distintas
+        palette = px.colors.qualitative.Dark24
         color_map = {}
         for i, u in enumerate(unidades_para_plot):
             color_map[u] = palette[i % len(palette)]
@@ -1304,9 +1129,8 @@ with tab_atend:
                 orientation='h',
                 text='receita_fmt_label',
                 labels={'receita': 'Receita (R$)', 'profissional': 'Terapeuta'},
-                color_discrete_sequence=[color_map[unidade]]  # mesma cor para todos bars da unidade
+                color_discrete_sequence=[color_map[unidade]]
             )
-            # Garantir maior no topo
             fig_unit.update_yaxes(autorange='reversed')
             fig_unit.update_traces(textposition='inside', textfont=dict(color='white', size=11))
             fig_unit.update_layout(
@@ -1321,10 +1145,10 @@ with tab_atend:
         
         st.markdown("---")
         
-        # Mantive a tabela de performance agregada (todas unidades)
+        # Tabela de performance agregada
         st.markdown("### Tabela de Performance")
         
-        # Adicionar totalizador ANTES de formatar (com recalculo de ticket médio)
+        # Adicionar totalizador
         df_terap_com_total = adicionar_totalizador(
             df_terap, 
             colunas_numericas=['receita', 'qtd_atendimentos', 'clientes_unicos'],
@@ -1332,7 +1156,7 @@ with tab_atend:
             calcular_ticket_medio=True
         )
         
-        # Agora formatar
+        # Formatar
         df_terap_display = df_terap_com_total.copy()
         df_terap_display['receita'] = df_terap_display['receita'].apply(
             lambda x: formatar_moeda(x) if pd.notna(x) and x != '' else x
@@ -1405,7 +1229,6 @@ with tab_atend:
             df_servicos_display['qtd_fmt'] = df_servicos_display['qtd'].apply(
                 lambda x: formatar_numero(x) if pd.notna(x) and x != '' else x
             )
-            # Para percentual, só calcular para linhas não-total
             df_servicos_display['perc_receita_fmt'] = df_servicos_display.apply(
                 lambda row: formatar_percentual(row['perc_receita']*100) if pd.notna(row.get('perc_receita')) and row.get('perc_receita') != '' else '100,00%' if row['nome_servico_simplificado'] == 'TOTAL' else '',
                 axis=1
@@ -1519,10 +1342,9 @@ with tab_atend:
             barmode='group',
             labels={'dia_semana': 'Dia da Semana', 'qtd_atendimentos': 'Atendimentos', 'nome_servico_simplificado': 'Serviço'},
             category_orders={'dia_semana': dias_ordem},
-            text='qtd_atendimentos'  # ADICIONADO: Rótulos nas barras
+            text='qtd_atendimentos'
         )
         
-        # ADICIONADO: Configurar posição e tamanho dos rótulos
         fig_bar2.update_traces(textposition='outside', textfont=dict(size=9))
         
         fig_bar2.update_layout(
@@ -1540,26 +1362,33 @@ with tab_atend:
 with tab_fin:
     st.subheader("Resumo Financeiro da Unidade")
     
+    # ═══════════════════════════════════════════════════════════════════════════
+    # ✅ 3 CARDS DO TOPO (igual à imagem mas com valores corretos)
+    # ═══════════════════════════════════════════════════════════════════════════
     colf1, colf2, colf3 = st.columns(3)
     
     with colf1:
         st.metric("Receita Total (Atendimentos)", formatar_moeda(receita_belle))
         with st.popover("ℹ️"):
-            st.caption("Receita total dos atendimentos presenciais (Belle - não inclui vouchers de ecommerce).")
+            st.caption("Receita dos atendimentos presenciais SOMENTE do Belle (exclui parcerias e ecommerce).")
     
     with colf2:
-        st.metric("Quantidade de Atendimentos", formatar_numero(qtd_atendimentos))
+        st.metric("Quantidade de Atendimentos", formatar_numero(qtd_atendimentos_belle))
         with st.popover("ℹ️"):
-            st.caption("Total de atendimentos únicos realizados.")
+            st.caption("Total de atendimentos únicos realizados no Belle.")
     
     with colf3:
-        st.metric("Ticket Médio Unidade", formatar_moeda(ticket_medio))
+        # Ticket médio SOMENTE do Belle puro
+        ticket_medio_belle = receita_belle / qtd_atendimentos_belle if qtd_atendimentos_belle > 0 else 0
+        st.metric("Ticket Médio Unidade", formatar_moeda(ticket_medio_belle))
         with st.popover("ℹ️"):
-            st.caption("Valor médio por atendimento na unidade (Belle).")
+            st.caption("Valor médio por atendimento SOMENTE do Belle (exclui parcerias e vouchers).")
     
     st.markdown("---")
     
-    # Faturamento Detalhado por Origem
+    # ═══════════════════════════════════════════════════════════════════════════
+    # ✅ FATURAMENTO DETALHADO POR ORIGEM - 4 CARDS SEPARADOS (IGUAL À IMAGEM!)
+    # ═══════════════════════════════════════════════════════════════════════════
     col_titulo_fat, col_ajuda_fat = st.columns([0.97, 0.03])
     with col_titulo_fat:
         st.subheader("Faturamento Detalhado por Origem")
@@ -1568,44 +1397,47 @@ with tab_fin:
             st.markdown("""
             **Origens do Faturamento:**
             
-            - **Belle (Sistema Local)**: Vendas registradas no sistema de gestão da unidade
-            - **Ecommerce (Vouchers)**: Vouchers comprados online e utilizados na unidade
-            - **Parcerias**: Vendas através de cupons de parceiros
+            - **💰 Faturamento Total**: Soma de TODAS as receitas
+            - **🏪 Belle (Sistema Local)**: Vendas registradas no Belle (sem parcerias)
+            - **🛒 Ecommerce (Vouchers)**: TODOS os vouchers utilizados
+            - **🤝 Parcerias**: TotalPass, GymPass, ClassPass (vem do BELLE pela forma_pagamento)
             """)
     
-    faturamento_total_completo = receita_belle + receita_ecommerce + receita_parceiro
+    faturamento_total_completo = receita_belle + receita_ecommerce + receita_parcerias_comerciais
     
-    # Cards de faturamento
+    # ═══════════════════════════════════════════════════════════════════════════
+    # ✅ OS 4 CARDS SEPARADOS (igual à sua imagem!)
+    # ═══════════════════════════════════════════════════════════════════════════
     col_fat1, col_fat2, col_fat3, col_fat4 = st.columns(4)
     
     with col_fat1:
         st.metric("💰 Faturamento Total", formatar_moeda(faturamento_total_completo))
         with st.popover("ℹ️"):
-            st.caption("Soma de todas as receitas: Belle + Ecommerce + Parcerias")
+            st.caption("Belle + Ecommerce + Parcerias")
     
     with col_fat2:
         st.metric("🏪 Belle (Sistema Local)", formatar_moeda(receita_belle))
         with st.popover("ℹ️"):
-            st.caption("Atendimentos pagos diretamente na unidade (dinheiro, cartão, PIX)")
+            st.caption("Atendimentos e produtos pagos diretamente (EXCLUI parcerias)")
     
     with col_fat3:
         st.metric("🛒 Ecommerce (Vouchers)", formatar_moeda(receita_ecommerce))
         with st.popover("ℹ️"):
-            st.caption("Vouchers comprados no site e utilizados na unidade")
+            st.caption("TODOS os vouchers utilizados na unidade")
     
     with col_fat4:
-        st.metric("🤝 Parcerias ", formatar_moeda(receita_parceiro))
+        st.metric("🤝 Parcerias", formatar_moeda(receita_parcerias_comerciais))
         with st.popover("ℹ️"):
-            st.caption("Vendas através de cupons de parceiros e empresas")
+            st.caption("✅ TotalPass/GymPass/ClassPass identificados pela forma_pagamento NO BELLE")
     
     # Gráficos de distribuição
     df_faturamento = pd.DataFrame({
-        'Origem': ['Belle\n(Sistema Local)', 'Ecommerce\n(Vouchers)', 'Parcerias\n(Cupons)'],
-        'Receita': [receita_belle, receita_ecommerce, receita_parceiro],
+        'Origem': ['Belle\n(Sistema Local)', 'Ecommerce\n(Vouchers)', 'Parcerias\n'],
+        'Receita': [receita_belle, receita_ecommerce, receita_parcerias_comerciais],
         'Percentual': [
             (receita_belle / faturamento_total_completo * 100) if faturamento_total_completo > 0 else 0,
             (receita_ecommerce / faturamento_total_completo * 100) if faturamento_total_completo > 0 else 0,
-            (receita_parceiro / faturamento_total_completo * 100) if faturamento_total_completo > 0 else 0
+            (receita_parcerias_comerciais / faturamento_total_completo * 100) if faturamento_total_completo > 0 else 0
         ]
     })
     
@@ -1622,7 +1454,7 @@ with tab_fin:
             color_discrete_map={
                 'Belle\n(Sistema Local)': '#8B0000',
                 'Ecommerce\n(Vouchers)': '#CD5C5C',
-                'Parcerias\n(Cupons)': '#F08080'
+                'Parcerias\n': '#F08080'
             }
         )
         
@@ -1646,7 +1478,7 @@ with tab_fin:
             color_discrete_map={
                 'Belle\n(Sistema Local)': '#8B0000',
                 'Ecommerce\n(Vouchers)': '#CD5C5C',
-                'Parcerias\n(Cupons)': '#F08080'
+                'Parcerias\n': '#F08080'
             }
         )
         
@@ -1883,13 +1715,10 @@ with tab_mkt:
             - Vouchers que foram **utilizados** na sua unidade
             - Data considerada: quando o cliente **usou** o voucher (USED_DATE)
             - Não mostra vouchers vendidos mas ainda não utilizados
-            
-            **AFILLIATION_NAME** indica em qual unidade o voucher foi usado.
             """)
     
     with st.spinner("Carregando dados de vouchers utilizados..."):
         try:
-            # Passar unidades selecionadas para filtrar ecommerce
             unidades_para_filtro = unidades_selecionadas if is_admin else [unidade_usuario.lower()]
             df_ecom = load_ecommerce_data(data_inicio, data_fim, unidades_filtro=unidades_para_filtro)
         except Exception as e:
@@ -1924,12 +1753,12 @@ with tab_mkt:
         with colm2:
             st.metric("Vouchers Utilizados", formatar_numero(total_vouchers))
             with st.popover("ℹ️"):
-                st.caption("Total de vouchers usados. Um pedido pode ter múltiplos vouchers (ex: pacote com 4 sessões).")
+                st.caption("Total de vouchers usados. Um pedido pode ter múltiplos vouchers.")
         
         with colm3:
             st.metric("Receita Vouchers Utilizados", formatar_moeda(receita_liquida_e))
             with st.popover("ℹ️"):
-                st.caption("Valor líquido dos vouchers utilizados (após descontos e cupons).")
+                st.caption("Valor líquido dos vouchers utilizados.")
         
         with colm4:
             st.metric("Ticket Médio Vendas", formatar_moeda(ticket_medio_e))
@@ -1975,22 +1804,18 @@ with tab_mkt:
         
         with col_b:
             df_serv_display = df_ecom.copy()
-            # Formatar receita (manter NULL como está, só formatar os valores válidos)
             df_serv_display['receita_fmt'] = df_serv_display['PRICE_NET'].apply(
                 lambda x: formatar_moeda(x) if pd.notna(x) else ''
             )
             if 'USED_DATE_BRAZIL' in df_serv_display.columns:
                 df_serv_display = df_serv_display.sort_values('USED_DATE_BRAZIL', ascending=False)
             
-            # RESETAR O ÍNDICE para ficar sequencial de 0 até N
             df_serv_display = df_serv_display.reset_index(drop=True)
             
-            # Mostrar informação de debug
             st.caption(f"📊 Total de vouchers na tabela: {len(df_serv_display)}")
 
-            # Preparar colunas (converter NaN para string vazia para exibição)
             df_display_final = df_serv_display[['KEY', 'ORDER_ID', 'PACKAGE_NAME', 'receita_fmt']].copy()
-            df_display_final = df_display_final.fillna('')  # Agora sim, converte NULL para string vazia
+            df_display_final = df_display_final.fillna('')
             
             st.dataframe(
                 df_display_final.rename(columns={
@@ -2011,7 +1836,7 @@ with tab_mkt:
             st.subheader("Distribuição Geográfica - Vendas por Estado")
         with col_ajuda_geo:
             with st.popover("ℹ️"):
-                st.caption("Estados de onde vieram os clientes que utilizaram vouchers na sua unidade. Baseado no endereço de cobrança do pedido.")
+                st.caption("Estados de onde vieram os clientes que utilizaram vouchers na sua unidade.")
         
         if 'Customer_State' in df_ecom.columns:
             df_geo = (
@@ -2048,20 +1873,16 @@ with tab_mkt:
     
     st.markdown("---")
     
-    # BLOCO 1.5 – VOUCHERS OMNICHANNEL (NOVA SEÇÃO)
+    # BLOCO - VOUCHERS OMNICHANNEL
     col_titulo_omni, col_ajuda_omni = st.columns([0.97, 0.03])
     with col_titulo_omni:
-        st.subheader("📊 Vouchers Omnichannel ")
+        st.subheader("📊 Vouchers Omnichannel")
     with col_ajuda_omni:
         with st.popover("ℹ️"):
             st.markdown("""
             **Vouchers Omnichannel**
             
             Visão completa de TODOS os vouchers vendidos para sua(s) unidade(s) no período selecionado.
-            
-            **Diferença para seção anterior:**
-            - Seção anterior: apenas vouchers **utilizados** (USED_DATE)
-            - Esta seção: todos os vouchers **vendidos** (CREATED_DATE)
             
             **Data considerada:** CREATED_DATE (data da compra do voucher)
             """)
@@ -2077,12 +1898,10 @@ with tab_mkt:
     if df_omni.empty:
         st.warning("Sem dados de vouchers omnichannel para o período selecionado.")
     else:
-        # Converter colunas numéricas
         df_omni['PRICE_GROSS'] = pd.to_numeric(df_omni['PRICE_GROSS'], errors='coerce')
         df_omni['PRICE_NET'] = pd.to_numeric(df_omni['PRICE_NET'], errors='coerce')
         df_omni['PRICE_REFOUND'] = pd.to_numeric(df_omni['PRICE_REFOUND'], errors='coerce')
         
-        # Completar PACKAGE_NAME
         if 'PACKAGE_NAME' in df_omni.columns:
             df_omni['PACKAGE_NAME'] = df_omni['PACKAGE_NAME'].fillna(df_omni['NAME'])
         else:
@@ -2099,12 +1918,12 @@ with tab_mkt:
         with col_omni1:
             st.metric("Total de Vouchers Vendidos", formatar_numero(total_vouchers_vendidos))
             with st.popover("ℹ️"):
-                st.caption("Total de vouchers vendidos para sua(s) unidade(s) no período, independente se foram usados ou não.")
+                st.caption("Total de vouchers vendidos para sua(s) unidade(s) no período.")
         
         with col_omni2:
             st.metric("Total de Pedidos", formatar_numero(total_pedidos_vendidos))
             with st.popover("ℹ️"):
-                st.caption("Número de pedidos únicos. Um pedido pode conter múltiplos vouchers.")
+                st.caption("Número de pedidos únicos.")
         
         with col_omni3:
             st.metric("Receita Bruta", formatar_moeda(receita_bruta_omni))
@@ -2114,11 +1933,11 @@ with tab_mkt:
         with col_omni4:
             st.metric("Receita Líquida", formatar_moeda(receita_liquida_omni))
             with st.popover("ℹ️"):
-                st.caption("Valor efetivamente recebido após descontos e cupons.")
+                st.caption("Valor efetivamente recebido após descontos.")
         
         st.markdown("---")
         
-        # Gráficos - REMOVENDO GRÁFICO DE STATUS
+        # Gráfico - Vouchers por Unidade
         col_omni_g1 = st.columns(1)[0]
         
         with col_omni_g1:
@@ -2132,14 +1951,6 @@ with tab_mkt:
                     .head(10)
                 )
                 
-                # Adicionar totalizador
-                df_unidade_omni_com_total = adicionar_totalizador(
-                    df_unidade_omni,
-                    colunas_numericas=['qtd', 'receita'],
-                    primeira_coluna='AFILLIATION_NAME'
-                )
-                
-                # Formatar para exibição no gráfico (sem a linha TOTAL)
                 df_unidade_omni_grafico = df_unidade_omni.copy()
                 df_unidade_omni_grafico['receita_fmt'] = df_unidade_omni_grafico['receita'].apply(formatar_moeda)
                 
@@ -2202,7 +2013,6 @@ with tab_mkt:
             st.plotly_chart(fig_prod_omni, use_container_width=True, key="chart_produtos_omni")
         
         with col_prod_omni2:
-            # Adicionar totalizador
             df_produtos_omni_com_total = adicionar_totalizador(
                 df_produtos_omni,
                 colunas_numericas=['qtd_vouchers', 'receita_bruta', 'receita_liquida'],
@@ -2298,7 +2108,7 @@ with tab_selfservice:
         st.subheader("Monte Sua Própria Análise")
     with col_ajuda_self:
         with st.popover("ℹ️"):
-            st.caption("Crie análises personalizadas selecionando as dimensões (como agrupar) e métricas (o que calcular). Ideal para extrair relatórios específicos.")
+            st.caption("Crie análises personalizadas selecionando as dimensões (como agrupar) e métricas (o que calcular).")
     
     c1, c2 = st.columns(2)
     
@@ -2330,7 +2140,6 @@ with tab_selfservice:
             "Cliente": "nome_cliente"
         }
         
-        # Mapeamento de nomes amigáveis
         nomes_amigaveis = {
             data_col: "Data",
             "unidade": "Unidade",
@@ -2366,31 +2175,27 @@ with tab_selfservice:
             # Formatar para exibição
             df_display = df_custom.copy()
             
-            # Formatar datas para dd/mm/yyyy
             if data_col in df_display.columns:
                 df_display[data_col] = pd.to_datetime(df_display[data_col]).dt.strftime('%d/%m/%Y')
             
-            # Formatar valores monetários
             if 'receita_total' in df_display.columns:
                 df_display['receita_total'] = df_display['receita_total'].apply(formatar_moeda)
             
             if 'ticket_medio' in df_display.columns:
                 df_display['ticket_medio'] = df_display['ticket_medio'].apply(formatar_moeda)
             
-            # Formatar números inteiros
             if 'qtd_atendimentos' in df_display.columns:
                 df_display['qtd_atendimentos'] = df_display['qtd_atendimentos'].apply(formatar_numero)
             
             if 'clientes_unicos' in df_display.columns:
                 df_display['clientes_unicos'] = df_display['clientes_unicos'].apply(formatar_numero)
             
-            # Renomear colunas para nomes amigáveis
             df_display = df_display.rename(columns=nomes_amigaveis)
             
             st.markdown("---")
             st.dataframe(df_display, use_container_width=True, height=400)
             
-            # Para download, manter valores numéricos mas formatar datas
+            # Para download
             df_download = df_custom.copy()
             if data_col in df_download.columns:
                 df_download[data_col] = pd.to_datetime(df_download[data_col]).dt.strftime('%d/%m/%Y')
@@ -2412,40 +2217,44 @@ with tab_gloss:
     st.markdown("""
     ### 📊 Principais Métricas
     
-    **Receita Total** – Soma de todas as receitas: Belle (Sistema Local) + Ecommerce (Vouchers) + Parcerias.
+    **Receita Total** – Belle (sem parcerias) + Ecommerce (todos vouchers) + Parcerias Comerciais.
     
-    **Receita Belle** – Soma de todos os valores líquidos de atendimentos presenciais no período.
+    **Receita Belle** – Soma de atendimentos e produtos EXCLUINDO parcerias comerciais.
     
-    **Quantidade de Atendimentos** – Número de atendimentos únicos (`id_venda`).
+    **Parcerias Comerciais** – TotalPass, GymPass, ClassPass identificados pela forma_pagamento no Belle.
+    
+    **Quantidade de Atendimentos** – Atendimentos Belle + Vouchers utilizados.
     
     **Clientes Únicos** – Número de clientes distintos atendidos.
     
-    **Ticket Médio por Atendimento** – Receita Belle ÷ Quantidade de Atendimentos.
+    **Ticket Médio** – Receita Total ÷ Atendimentos Totais (inclui vouchers).
     
     **NPS (Net Promoter Score)** – Indicador de satisfação calculado como: (% Promotores - % Detratores).
     - **Promotores**: Notas 9-10
     - **Neutros**: Notas 7-8
     - **Detratores**: Notas 0-6
     
-    **Serviços Presenciais Mais Vendidos** – Ranking de serviços presenciais por receita e quantidade.
+    **Vouchers Utilizados** – Vouchers do ecommerce que foram efetivamente utilizados na unidade (USED_DATE).
     
-    **Vouchers Utilizados** – Vouchers do ecommerce que foram efetivamente utilizados na unidade (filtrados por `USED_DATE` e `AFILLIATION_NAME`).
+    **Vouchers Omnichannel** – Todos os vouchers vendidos para a unidade (CREATED_DATE).
     
-    **Vouchers Omnichannel** – Todos os vouchers vendidos para a unidade, independente se foram utilizados ou não (filtrados por `CREATED_DATE`).
+    ### 🎫 Sobre Parcerias Comerciais
     
-    **Distribuição de Receita** – Divisão da receita entre Belle (Sistema Local), Ecommerce (Vouchers) e Parcerias.
+    **IMPORTANTE:** Parcerias comerciais (TotalPass, GymPass, ClassPass) vêm DO BELLE, não do ecommerce!
     
-    ### 🎫 Sobre Vouchers
-    
-    **Vouchers Utilizados:** Mostram apenas os vouchers que já foram utilizados na sua unidade (data: USED_DATE).
-    
-    **Vouchers Omnichannel:** Mostram todos os vouchers vendidos para sua unidade, independente se foram utilizados ou não (data: CREATED_DATE).
+    São identificadas pela coluna `forma_pagamento` que contém texto "parcerias comerciais".
     
     ### 💡 Dicas de Uso
     
     - Use os **ícones ℹ️** ao lado das métricas para ver explicações detalhadas
     - Na aba **Self-Service**, você pode criar análises personalizadas
-    - Na aba **Financeiro**, veja o detalhamento completo por origem (Belle, Ecommerce, Parcerias)
+    - Na aba **Financeiro**, veja o detalhamento completo por origem
+    
+    ### ✅ Correções Aplicadas (v3.2)
+    
+    1. **Produtos incluídos**: A receita Belle agora inclui produtos vendidos
+    2. **Parcerias do Belle**: TotalPass/GymPass/ClassPass são identificados pela forma_pagamento
+    3. **Vouchers contam**: Vouchers agora contam como atendimentos no cálculo do ticket médio
     """)
      
-    st.caption("Buddha Spa Dashboard – Portal de Franqueados v2.2")
+    st.caption("Buddha Spa Dashboard – Portal de Franqueados v3.2 ✅")
