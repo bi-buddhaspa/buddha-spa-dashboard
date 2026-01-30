@@ -947,7 +947,7 @@ with st.expander("📊 De onde vem a Receita Total?", expanded=False):
        - Sem cupons de desconto
     
     3. **🤝 Parcerias : {formatar_moeda(receita_parceiro)}**
-       - Vendas através de cupons de parceiros
+       - Vendas através de parceiros comerciais
        - Vouchers utilizados com desconto
     
     #### 📍 O que está incluído:
@@ -967,10 +967,6 @@ with st.expander("📊 De onde vem a Receita Total?", expanded=False):
     - **Clientes únicos**: {formatar_numero(qtd_clientes)}
     - **Ticket médio (Belle)**: {formatar_moeda(ticket_medio)}
     
-    #### ❌ NÃO incluído:
-    - Produtos vendidos (cosméticos, óleos, etc.)
-    - Vouchers vendidos mas ainda não utilizados
-    - Vendas canceladas ou reembolsadas
     
     #### 💡 Quer ver mais detalhes?
     
