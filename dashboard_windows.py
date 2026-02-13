@@ -390,7 +390,7 @@ def get_bigquery_client():
 # -----------------------------------------------------------------------------
 # ✅ CORREÇÃO 1: PRODUTOS INCLUÍDOS - REMOVIDO tipo_item = 'Serviço'
 # -----------------------------------------------------------------------------
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=14400)
 def load_atendimentos(data_inicio, data_fim, unidade_filtro=None):
     client = get_bigquery_client()
     
@@ -417,7 +417,7 @@ def load_atendimentos(data_inicio, data_fim, unidade_filtro=None):
     """
     return client.query(query).to_dataframe()
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=14400)
 def load_atendimentos_detalhados(data_inicio, data_fim, unidade_filtro=None):
     client = get_bigquery_client()
     
@@ -442,7 +442,7 @@ def load_atendimentos_detalhados(data_inicio, data_fim, unidade_filtro=None):
     """
     return client.query(query).to_dataframe()
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=14400)
 def load_unidades():
     client = get_bigquery_client()
     query = """
@@ -454,7 +454,7 @@ def load_unidades():
     """
     return client.query(query).to_dataframe()['unidade'].tolist()
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=14400)
 def load_ecommerce_data(data_inicio, data_fim, unidades_filtro=None):
     client = get_bigquery_client()
     
@@ -505,7 +505,7 @@ def load_ecommerce_data(data_inicio, data_fim, unidades_filtro=None):
     """
     return client.query(query).to_dataframe()
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=14400)
 def load_omnichannel_vouchers(data_inicio, data_fim, unidades_filtro=None):
     client = get_bigquery_client()
     
@@ -593,7 +593,7 @@ def load_omnichannel_vouchers(data_inicio, data_fim, unidades_filtro=None):
     """
     return client.query(query).to_dataframe()
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=14400)
 def load_nps_data(data_inicio, data_fim, unidade_filtro=None):
     client = get_bigquery_client()
     
